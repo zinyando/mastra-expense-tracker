@@ -3,6 +3,7 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  description: string;
 }
 
 export interface Expense {
@@ -27,6 +28,14 @@ export interface DashboardStats {
     previousMonth: number;
     trend: number;
   };
+}
+
+export interface Stats {
+  totalExpenses: number;
+  expensesByCategory: {
+    categoryId: string;
+    total: number;
+  }[];
 }
 
 // API Error handling
