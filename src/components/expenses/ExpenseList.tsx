@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { PlusIcon } from '@heroicons/react/24/outline';
-import { Expense, getExpenses } from '@/utils/api';
-import Modal from '@/components/ui/Modal';
-import ExpenseUpload from './ExpenseUpload';
+import { useState, useEffect } from "react";
+import { PlusIcon } from "@heroicons/react/24/outline";
+import { Expense, getExpenses } from "@/utils/api";
+import Modal from "@/components/ui/Modal";
+import ExpenseUpload from "./ExpenseUpload";
 
 export default function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -19,7 +19,9 @@ export default function ExpenseList() {
         setExpenses(data.expenses);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load expenses');
+        setError(
+          err instanceof Error ? err.message : "Failed to load expenses"
+        );
       } finally {
         setLoading(false);
       }
@@ -39,7 +41,9 @@ export default function ExpenseList() {
   if (error) {
     return (
       <div className="rounded-lg bg-red-50 p-4">
-        <h3 className="text-sm font-medium text-red-800">Error loading expenses</h3>
+        <h3 className="text-sm font-medium text-red-800">
+          Error loading expenses
+        </h3>
         <div className="mt-2 text-sm text-red-700">{error}</div>
       </div>
     );
@@ -90,7 +94,10 @@ export default function ExpenseList() {
                     >
                       Amount
                     </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                    <th
+                      scope="col"
+                      className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                    >
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
@@ -108,9 +115,9 @@ export default function ExpenseList() {
                         {expense.categoryId}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: 'USD',
+                        {new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "USD",
                         }).format(expense.amount)}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -136,10 +143,28 @@ export default function ExpenseList() {
         title="Upload Expense Receipt"
       >
         <ExpenseUpload
-          onUpload={(file) => {
-            console.log('Uploaded file:', file);
-            setIsUploadModalOpen(false);
-            // TODO: Handle file upload to backend
+          onUpload={async (file) => {
+            try {
+              const formData = new FormData();
+              formData.append("file", file);
+
+              const response = await fetch("/api/expenses/upload", {
+                method: "POST",
+                body: formData,
+              });
+
+              if (!response.ok) {
+                throw new Error("Failed to upload file");
+              }
+
+              await response.json();
+              setIsUploadModalOpen(false);
+            } catch (error) {
+              console.error("Error uploading file:", error);
+              setError(
+                error instanceof Error ? error.message : "Failed to upload file"
+              );
+            }
           }}
         />
       </Modal>
