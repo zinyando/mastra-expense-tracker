@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { Expense, getExpenses } from '@/utils/api';
+import Modal from '@/components/ui/Modal';
+import ExpenseUpload from './ExpenseUpload';
 
 export default function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -48,6 +51,7 @@ export default function ExpenseList() {
         <h1 className="text-2xl font-semibold text-gray-900">Expenses</h1>
         <button
           type="button"
+          onClick={() => setIsUploadModalOpen(true)}
           className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
         >
           <PlusIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -125,6 +129,20 @@ export default function ExpenseList() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        title="Upload Expense Receipt"
+      >
+        <ExpenseUpload
+          onUpload={(file) => {
+            console.log('Uploaded file:', file);
+            setIsUploadModalOpen(false);
+            // TODO: Handle file upload to backend
+          }}
+        />
+      </Modal>
     </div>
   );
 }
