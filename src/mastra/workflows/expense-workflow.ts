@@ -3,6 +3,24 @@ import { createWorkflow, createStep } from "@mastra/core/workflows/vNext";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
+// Helper function to fetch categories from API
+async function fetchCategoriesFromAPI(): Promise<string[]> {
+  // Make API call to fetch categories
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/categories`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch categories: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  if (!data.categories?.length) {
+    throw new Error('No categories found');
+  }
+  
+  // Extract category names from the result
+  return data.categories.map((cat: { name: string }) => cat.name);
+}
+
 // Define schemas
 const expenseSchema = z.object({
   merchant: z.string().describe("The name of the merchant or store"),
@@ -72,16 +90,8 @@ const categorizeExpense = createStep({
   inputSchema: expenseSchema,
   outputSchema: expenseSchema,
   execute: async ({ inputData }) => {
-    const categories = [
-      "Meals",
-      "Travel",
-      "Office Supplies",
-      "Entertainment",
-      "Transportation",
-      "Utilities",
-      "Healthcare",
-      "Other",
-    ];
+    // Fetch categories from API instead of hardcoding them
+    const categories = await fetchCategoriesFromAPI();
 
     const { text } = await generateText({
       model: openai("gpt-4o"),
@@ -97,11 +107,28 @@ const categorizeExpense = createStep({
       ],
     });
 
-    const category = text.trim();
+    const categoryResponse = text.trim();
+    
+    // Try to find best matching category from our fetched list
+    let bestMatch = "Other";
+    
+    if (categoryResponse) {
+      // Exact match
+      if (categories.includes(categoryResponse)) {
+        bestMatch = categoryResponse;
+      } else {
+        // Fuzzy match - look for closest match in case of capitalization or minor spelling differences
+        const lowerCaseResponse = categoryResponse.toLowerCase();
+        const match = categories.find(c => c.toLowerCase() === lowerCaseResponse);
+        if (match) {
+          bestMatch = match;
+        }
+      }
+    }
 
     return {
       ...inputData,
-      category: categories.includes(category || "") ? category : "Other",
+      category: bestMatch,
     };
   },
 });
