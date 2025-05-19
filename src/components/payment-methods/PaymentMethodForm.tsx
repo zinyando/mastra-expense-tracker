@@ -2,12 +2,34 @@
 
 import { useState } from 'react';
 import { PaymentMethod } from '@/utils/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertCircle } from 'lucide-react';
 
 interface PaymentMethodFormProps {
   paymentMethod?: PaymentMethod;
   onSubmit: (data: Omit<PaymentMethod, 'id'>) => Promise<void>;
   onCancel: () => void;
 }
+
+const paymentTypes = [
+  { value: 'credit-card', label: 'Credit Card' },
+  { value: 'debit-card', label: 'Debit Card' },
+  { value: 'bank-account', label: 'Bank Account' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'digital-wallet', label: 'Digital Wallet' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function PaymentMethodForm({
   paymentMethod,
@@ -16,21 +38,12 @@ export default function PaymentMethodForm({
 }: PaymentMethodFormProps) {
   const [formData, setFormData] = useState({
     name: paymentMethod?.name || '',
-    type: paymentMethod?.type || 'Credit Card',
+    type: paymentMethod?.type || paymentTypes[0].label,
     lastFourDigits: paymentMethod?.lastFourDigits || '',
     isDefault: paymentMethod?.isDefault || false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const paymentTypes = [
-    'Credit Card',
-    'Debit Card',
-    'Bank Account',
-    'Cash',
-    'Digital Wallet',
-    'Other',
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,104 +60,109 @@ export default function PaymentMethodForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-700">{error}</div>
-        </div>
+        <Card className="border-destructive/50 bg-destructive/5 p-4">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        </Card>
       )}
 
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-          Name
-        </label>
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input
           type="text"
           id="name"
           name="name"
           value={formData.name}
           onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          placeholder="Enter payment method name"
           required
         />
       </div>
 
-      <div>
-        <label htmlFor="type" className="block text-sm font-medium text-gray-700">
-          Type
-        </label>
-        <select
-          id="type"
-          name="type"
+      <div className="space-y-2">
+        <Label>Type</Label>
+        <Select
           value={formData.type}
-          onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
         >
-          {paymentTypes.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger>
+            <SelectValue placeholder="Select payment type" />
+          </SelectTrigger>
+          <SelectContent>
+            {paymentTypes.map((type) => (
+              <SelectItem key={type.value} value={type.label}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div>
-        <label htmlFor="lastFourDigits" className="block text-sm font-medium text-gray-700">
-          Last 4 Digits
-        </label>
-        <input
-          type="text"
-          id="lastFourDigits"
-          name="lastFourDigits"
-          value={formData.lastFourDigits}
-          onChange={(e) => {
-            const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-            setFormData((prev) => ({ ...prev, lastFourDigits: value }));
-          }}
-          placeholder="Optional"
-          maxLength={4}
-          pattern="\d{0,4}"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        />
-        <p className="mt-1 text-xs text-gray-500">
+      <div className="space-y-2">
+        <Label htmlFor="lastFourDigits">Last 4 Digits</Label>
+        <div className="relative">
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+            ••••
+          </span>
+          <Input
+            type="text"
+            id="lastFourDigits"
+            name="lastFourDigits"
+            value={formData.lastFourDigits}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+              setFormData((prev) => ({ ...prev, lastFourDigits: value }));
+            }}
+            className="pl-14 font-mono"
+            placeholder="1234"
+            maxLength={4}
+            pattern="\d{0,4}"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
           For cards and accounts, enter the last 4 digits for easy identification
         </p>
       </div>
 
-      <div className="relative flex items-start">
-        <div className="flex h-5 items-center">
-          <input
-            id="isDefault"
-            name="isDefault"
-            type="checkbox"
-            checked={formData.isDefault}
-            onChange={(e) => setFormData((prev) => ({ ...prev, isDefault: e.target.checked }))}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="ml-3 text-sm">
-          <label htmlFor="isDefault" className="font-medium text-gray-700">
+      <div className="flex items-start space-x-3">
+        <Checkbox
+          id="isDefault"
+          checked={formData.isDefault}
+          onCheckedChange={(checked) =>
+            setFormData((prev) => ({ ...prev, isDefault: checked === true }))
+          }
+        />
+        <div className="space-y-1 leading-none">
+          <Label
+            htmlFor="isDefault"
+            className="cursor-pointer font-normal"
+          >
             Set as default
-          </label>
-          <p className="text-gray-500">Make this the default payment method for new expenses</p>
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            Make this the default payment method for new expenses
+          </p>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2">
-        <button
+      <div className="flex items-center justify-end gap-2">
+        <Button
           type="button"
+          variant="outline"
           onClick={onCancel}
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           {isSubmitting ? 'Saving...' : paymentMethod ? 'Update Payment Method' : 'Add Payment Method'}
-        </button>
+        </Button>
       </div>
     </form>
   );

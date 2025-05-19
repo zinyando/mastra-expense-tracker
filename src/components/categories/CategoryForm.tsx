@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 import { Category } from '@/utils/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { AlertCircle } from 'lucide-react';
 
 interface CategoryFormProps {
   category?: Category;
@@ -33,81 +38,79 @@ export default function CategoryForm({ category, onSubmit, onCancel }: CategoryF
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-700">{error}</div>
-        </div>
+        <Card className="border-destructive/50 bg-destructive/5 p-4">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        </Card>
       )}
 
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-          Name
-        </label>
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input
           type="text"
           id="name"
           name="name"
           value={formData.name}
           onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          placeholder="Enter category name"
           required
         />
       </div>
 
-      <div>
-        <label htmlFor="color" className="block text-sm font-medium text-gray-700">
-          Color
-        </label>
-        <div className="mt-1 flex items-center gap-2">
-          <input
-            type="color"
-            id="color"
-            name="color"
-            value={formData.color}
-            onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-            className="h-8 w-8 rounded-md border-gray-300 p-0"
-          />
-          <input
+      <div className="space-y-2">
+        <Label htmlFor="color">Color</Label>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Input
+              type="color"
+              id="color"
+              name="color"
+              value={formData.color}
+              onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+              className="h-10 w-10 cursor-pointer border-0 p-0"
+            />
+          </div>
+          <Input
             type="text"
             value={formData.color}
             onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             pattern="^#[0-9A-Fa-f]{6}$"
             placeholder="#000000"
+            className="font-mono"
           />
         </div>
       </div>
 
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-          Description
-        </label>
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
         <textarea
           id="description"
           name="description"
           value={formData.description}
           onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          rows={3}
+          className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          placeholder="Enter category description"
         />
       </div>
 
-      <div className="flex justify-end gap-2">
-        <button
+      <div className="flex items-center justify-end gap-2">
+        <Button
           type="button"
+          variant="outline"
           onClick={onCancel}
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           {isSubmitting ? 'Saving...' : category ? 'Update Category' : 'Create Category'}
-        </button>
+        </Button>
       </div>
     </form>
   );
