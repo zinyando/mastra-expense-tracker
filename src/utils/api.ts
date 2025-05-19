@@ -1,4 +1,12 @@
 // API Types
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  type: string;
+  lastFourDigits?: string;
+  isDefault: boolean;
+}
 export interface Category {
   id: string;
   name: string;
@@ -287,6 +295,47 @@ export async function deleteExpense(id: string): Promise<void> {
   if (!response.ok) {
     const error = await response.json();
     throw new ApiError(response.status, error.error || 'Failed to delete expense');
+  }
+}
+
+// Payment Methods API
+export async function getPaymentMethods(): Promise<{ paymentMethods: PaymentMethod[] }> {
+  const response = await fetch('/api/payment-methods');
+  return handleResponse(response);
+}
+
+export async function createPaymentMethod(data: Omit<PaymentMethod, 'id'>): Promise<PaymentMethod> {
+  const response = await fetch('/api/payment-methods', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function updatePaymentMethod(
+  id: string,
+  data: Partial<Omit<PaymentMethod, 'id'>>
+): Promise<PaymentMethod> {
+  const response = await fetch(`/api/payment-methods/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function deletePaymentMethod(id: string): Promise<void> {
+  const response = await fetch(`/api/payment-methods/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new ApiError(response.status, error.error || 'Failed to delete payment method');
   }
 }
 
