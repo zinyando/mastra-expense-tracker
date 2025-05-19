@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { Expense, WorkflowExpense, getExpenses, processExpenseImage, updateWorkflowExpense } from "@/utils/api";
+import { Expense, WorkflowExpense, getExpenses, getExpenseById, processExpenseImage, updateWorkflowExpense } from "@/utils/api";
 import Modal from "@/components/ui/Modal";
 import ExpenseUpload from "./ExpenseUpload";
 import ExpenseProcessor from "./ExpenseProcessor";
@@ -15,6 +15,51 @@ export default function ExpenseList() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(null);
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+  
+  // Function to handle editing an existing expense
+  const handleEditExpense = async (expense: Expense) => {
+    try {
+      setError(null);
+      
+      // Show loading state while we fetch the complete expense details
+      const loadingExpense: WorkflowExpense = {
+        id: expense.id,
+        merchant: expense.description,
+        amount: expense.amount,
+        currency: "USD",
+        date: expense.date,
+        category: expense.categoryId,
+        items: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      setCurrentExpense(loadingExpense);
+      setIsEditModalOpen(true);
+      
+      // Try to fetch the complete expense details from the API
+      try {
+        const completeExpense = await getExpenseById(expense.id);
+        
+        // If we get the expense from the API, update with more details if available
+        const updatedWorkflowExpense: WorkflowExpense = {
+          ...loadingExpense,
+          merchant: completeExpense.description || loadingExpense.merchant,
+          category: completeExpense.categoryId || loadingExpense.category,
+          // Add any additional fields from the API response
+        };
+        
+        setCurrentExpense(updatedWorkflowExpense);
+      } catch (fetchError) {
+        // If API fetch fails, we'll just use the basic data we already have
+        console.warn('Could not fetch complete expense details:', fetchError);
+        // No need to close the modal or show error as we can still edit with basic info
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to prepare expense for editing');
+      setIsEditModalOpen(false);
+    }
+  };
   
   // Helper function to format dates consistently
   const formatDate = (dateString: string): string => {
@@ -174,6 +219,7 @@ export default function ExpenseList() {
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <button
                           type="button"
+                          onClick={() => handleEditExpense(expense)}
                           className="text-indigo-600 hover:text-indigo-900"
                         >
                           Edit

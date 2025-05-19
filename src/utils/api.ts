@@ -175,6 +175,11 @@ export async function createExpense(data: Omit<Expense, 'id'>): Promise<Expense>
   return handleResponse(response);
 }
 
+export async function getExpenseById(id: string): Promise<Expense> {
+  const response = await fetch(`/api/expenses/${id}`);
+  return handleResponse(response);
+}
+
 export async function updateExpense(id: string, data: Partial<Omit<Expense, 'id'>>): Promise<Expense> {
   const response = await fetch(`/api/expenses/${id}`, {
     method: 'PUT',
