@@ -16,6 +16,32 @@ export default function ExpenseList() {
   const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(null);
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   
+  // Helper function to format dates consistently
+  const formatDate = (dateString: string): string => {
+    try {
+      if (!dateString) return '';
+      
+      // Create a Date object from the string
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        // Try to handle special cases
+        if (typeof dateString === 'string' && dateString.includes('T')) {
+          // It's probably an ISO string with formatting issues
+          return dateString.split('T')[0]; // Extract just the YYYY-MM-DD part
+        }
+        return dateString; // Return original if we can't parse it
+      }
+      
+      // Format as YYYY-MM-DD
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString; // Return original string on error
+    }
+  };
+  
   // Function to process an uploaded receipt image using the expense workflow
   const handleProcessExpense = async (imageUrl: string) => {
     try {
@@ -131,7 +157,7 @@ export default function ExpenseList() {
                   {expenses.map((expense) => (
                     <tr key={expense.id}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        {expense.date}
+                        {formatDate(expense.date)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {expense.description}
