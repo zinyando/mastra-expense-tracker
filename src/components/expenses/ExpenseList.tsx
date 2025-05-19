@@ -2,15 +2,40 @@
 
 import { useState, useEffect } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { Expense, getExpenses } from "@/utils/api";
+import { Expense, WorkflowExpense, getExpenses, processExpenseImage, updateWorkflowExpense } from "@/utils/api";
 import Modal from "@/components/ui/Modal";
 import ExpenseUpload from "./ExpenseUpload";
+import ExpenseProcessor from "./ExpenseProcessor";
 
 export default function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(null);
+  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+  
+  // Function to process an uploaded receipt image using the expense workflow
+  const handleProcessExpense = async (imageUrl: string) => {
+    try {
+      const processedExpense = await processExpenseImage(imageUrl);
+      
+      // Show the expense in edit mode
+      setCurrentExpense(processedExpense);
+      setIsUploadModalOpen(false);
+      setIsEditModalOpen(true);
+      
+      // Refresh the expenses list
+      const refreshedData = await getExpenses();
+      setExpenses(refreshedData.expenses);
+    } catch (error) {
+      console.error('Error processing expense:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process expense');
+    } finally {
+      setIsProcessingReceipt(false);
+    }
+  };
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -142,31 +167,76 @@ export default function ExpenseList() {
         onClose={() => setIsUploadModalOpen(false)}
         title="Upload Expense Receipt"
       >
-        <ExpenseUpload
-          onUpload={async (file) => {
-            try {
-              const formData = new FormData();
-              formData.append("file", file);
+        {isProcessingReceipt ? (
+          <div className="flex flex-col items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-sm text-gray-600">Processing receipt...</p>
+          </div>
+        ) : (
+          <ExpenseUpload
+            onUpload={async (file) => {
+              try {
+                // First upload the file
+                const formData = new FormData();
+                formData.append("file", file);
 
-              const response = await fetch("/api/expenses/upload", {
-                method: "POST",
-                body: formData,
-              });
+                const response = await fetch("/api/expenses/upload", {
+                  method: "POST",
+                  body: formData,
+                });
 
-              if (!response.ok) {
-                throw new Error("Failed to upload file");
+                if (!response.ok) {
+                  throw new Error("Failed to upload file");
+                }
+
+                const data = await response.json();
+                
+                // Then process the uploaded file with the workflow
+                if (data.url) {
+                  setIsProcessingReceipt(true);
+                  await handleProcessExpense(data.url);
+                }
+              } catch (error) {
+                console.error("Error uploading file:", error);
+                setError(
+                  error instanceof Error ? error.message : "Failed to upload file"
+                );
+                setIsUploadModalOpen(false);
               }
-
-              await response.json();
-              setIsUploadModalOpen(false);
-            } catch (error) {
-              console.error("Error uploading file:", error);
-              setError(
-                error instanceof Error ? error.message : "Failed to upload file"
-              );
-            }
-          }}
-        />
+            }}
+          />
+        )}
+      </Modal>
+      
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Expense"
+      >
+        {currentExpense && (
+          <ExpenseProcessor
+            expense={currentExpense}
+            onSave={async (updatedExpense) => {
+              try {
+                // Save the updated expense using our utility function
+                await updateWorkflowExpense(updatedExpense.id, updatedExpense);
+                
+                // Refresh expenses and close the modal
+                const updatedData = await getExpenses();
+                setExpenses(updatedData.expenses);
+                setIsEditModalOpen(false);
+                setCurrentExpense(null);
+              } catch (error) {
+                console.error("Error saving expense:", error);
+                throw error;
+              }
+            }}
+            onCancel={() => {
+              setIsEditModalOpen(false);
+              setCurrentExpense(null);
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

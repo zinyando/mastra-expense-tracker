@@ -8,7 +8,7 @@ const expenseSchema = z.object({
   merchant: z.string().describe("The name of the merchant or store"),
   amount: z.number().positive().describe("The total amount of the expense"),
   currency: z.string().default("USD").describe("Currency code, e.g., USD, EUR"),
-  date: z.string().datetime().describe("Date of the expense in ISO format"),
+  date: z.string().describe("Date of the expense"),
   category: z.string().describe("Expense category"),
   items: z
     .array(
@@ -40,11 +40,28 @@ const extractExpenseData = createStep({
     const { object: expenseData } = await generateObject({
       model: openai.chat("gpt-4o"),
       schema: expenseSchema,
-      prompt: `Extract all expense information from this receipt in JSON format. Include merchant, amount, currency, date, category, and line items if available.\n\nImage URL: ${imageUrl}`,
+      prompt: `Extract all expense information from this receipt in JSON format. Include merchant, amount, currency, date, category, and line items if available.\n\nFor the date, extract it exactly as it appears on the receipt. For the amount, extract just the number (no currency symbols). Ensure all number fields are actual numbers, not strings.\n\nImage URL: ${imageUrl}`,
       temperature: 0.1,
     });
 
-    return expenseSchema.parse(expenseData);
+    // Format the date to ISO if needed
+    const formattedData = { ...expenseData };
+    
+    // Try to convert date to ISO format if it's not already
+    if (formattedData.date && !formattedData.date.includes('T')) {
+      try {
+        // Create a Date object from the string and convert to ISO
+        const dateObj = new Date(formattedData.date);
+        if (!isNaN(dateObj.getTime())) {
+          formattedData.date = dateObj.toISOString();
+        }
+      } catch (error) {
+        // If date parsing fails, keep the original string
+        console.warn('Could not convert date to ISO format:', formattedData.date, error);
+      }
+    }
+    
+    return expenseSchema.parse(formattedData);
   },
 });
 

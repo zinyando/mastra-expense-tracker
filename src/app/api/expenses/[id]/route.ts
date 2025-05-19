@@ -35,28 +35,37 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const body = await request.json();
-    const { amount, description, categoryId, date } = body;
-
-    // Validate required fields
-    if (!amount || !description || !categoryId || !date) {
+    const expense = await request.json();
+    
+    // Validate required fields for the enhanced expense schema
+    if (!expense.merchant || !expense.amount || !expense.date || !expense.category) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // TODO: Replace with actual database update
+    // Update the timestamp
     const updatedExpense = {
-      id,
-      amount,
-      description,
-      categoryId,
-      date,
+      ...expense,
+      id,  // Ensure we're using the URL param ID
+      updatedAt: new Date().toISOString(),
     };
 
+    // TODO: Replace with actual database update using Supabase
+    // Example: 
+    // const { error } = await supabase
+    //   .from('expenses')
+    //   .update(updatedExpense)
+    //   .eq('id', id);
+    
+    // if (error) {
+    //   throw new Error(`Database error: ${error.message}`);
+    // }
+    
     return NextResponse.json(updatedExpense);
-  } catch {
+  } catch (error) {
+    console.error("Error updating expense:", error);
     return NextResponse.json(
       { error: "Failed to update expense" },
       { status: 500 }
