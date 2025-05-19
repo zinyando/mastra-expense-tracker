@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
@@ -10,23 +10,20 @@ export async function GET(
     // TODO: Replace with actual database query
     const expense = {
       id,
-      amount: 150.00,
-      description: 'Office Supplies',
-      categoryId: '1',
-      date: '2025-05-08',
+      amount: 150.0,
+      description: "Office Supplies",
+      categoryId: "1",
+      date: "2025-05-08",
     };
 
     if (!expense) {
-      return NextResponse.json(
-        { error: 'Expense not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
     }
 
     return NextResponse.json(expense);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { error: 'Failed to fetch expense' },
+      { error: "Failed to fetch expense" },
       { status: 500 }
     );
   }
@@ -44,7 +41,7 @@ export async function PUT(
     // Validate required fields
     if (!amount || !description || !categoryId || !date) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: "Missing required fields" },
         { status: 400 }
       );
     }
@@ -59,9 +56,9 @@ export async function PUT(
     };
 
     return NextResponse.json(updatedExpense);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { error: 'Failed to update expense' },
+      { error: "Failed to update expense" },
       { status: 500 }
     );
   }
@@ -74,12 +71,14 @@ export async function DELETE(
   try {
     const { id } = params;
 
+    console.log(`Deleting expense with id: ${id}`);
+
     // TODO: Replace with actual database delete
     // Return success response
     return new NextResponse(null, { status: 204 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { error: 'Failed to delete expense' },
+      { error: "Failed to delete expense" },
       { status: 500 }
     );
   }
