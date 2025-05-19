@@ -1,5 +1,8 @@
+import { Mastra } from "@mastra/core";
+import { expenseWorkflow } from "./workflows/expense-workflow";
 
-import { Mastra } from '@mastra/core';
-
-export const mastra = new Mastra()
-        
+export const mastra = new Mastra({
+  vnext_workflows: {
+    expenseWorkflow,
+  },
+});
