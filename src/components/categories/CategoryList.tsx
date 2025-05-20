@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PlusIcon } from '@heroicons/react/24/outline';
-import { Category, getCategories, createCategory, updateCategory } from '@/utils/api';
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Category, getCategories, createCategory, updateCategory, deleteCategory } from '@/utils/api';
 import Modal from '@/components/ui/Modal';
 import CategoryForm from './CategoryForm';
 
@@ -12,6 +12,7 @@ export default function CategoryList() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   const fetchCategories = async () => {
     try {
@@ -37,6 +38,17 @@ export default function CategoryList() {
   const handleEditCategory = (category: Category) => {
     setEditingCategory(category);
     setIsModalOpen(true);
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    try {
+      await deleteCategory(categoryToDelete.id);
+      setCategoryToDelete(null);
+      fetchCategories(); // Refresh the list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete category');
+    }
   };
 
   const handleSubmit = async (data: Omit<Category, 'id'>) => {
@@ -136,13 +148,26 @@ export default function CategoryList() {
                         </div>
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button
-                          type="button"
-                          onClick={() => handleEditCategory(category)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex gap-4 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCategory(category)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCategoryToDelete(category);
+                            }}
+                            className="text-red-600 hover:text-red-800 flex items-center"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -163,6 +188,39 @@ export default function CategoryList() {
           onSubmit={handleSubmit}
           onCancel={() => setIsModalOpen(false)}
         />
+      </Modal>
+
+      <Modal
+        isOpen={categoryToDelete !== null}
+        onClose={() => setCategoryToDelete(null)}
+        title="Confirm Delete"
+      >
+        <div className="p-6">
+          <p className="text-sm text-gray-500 mb-4">
+            Are you sure you want to delete this category?
+            {categoryToDelete && (
+              <span className="block mt-2 font-medium">
+                {categoryToDelete.name}
+              </span>
+            )}
+          </p>
+          <div className="mt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              onClick={() => setCategoryToDelete(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+              onClick={handleDeleteCategory}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

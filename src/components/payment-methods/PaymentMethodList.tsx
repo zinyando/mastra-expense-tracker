@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PlusIcon, CreditCardIcon } from '@heroicons/react/24/outline';
-import { PaymentMethod, getPaymentMethods, createPaymentMethod, updatePaymentMethod } from '@/utils/api';
+import { PlusIcon, CreditCardIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PaymentMethod, getPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '@/utils/api';
 import Modal from '@/components/ui/Modal';
 import PaymentMethodForm from './PaymentMethodForm';
 
@@ -12,6 +12,7 @@ export default function PaymentMethodList() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [methodToDelete, setMethodToDelete] = useState<PaymentMethod | null>(null);
 
   const fetchPaymentMethods = async () => {
     try {
@@ -37,6 +38,17 @@ export default function PaymentMethodList() {
   const handleEditPaymentMethod = (method: PaymentMethod) => {
     setEditingPaymentMethod(method);
     setIsModalOpen(true);
+  };
+
+  const handleDeletePaymentMethod = async () => {
+    if (!methodToDelete) return;
+    try {
+      await deletePaymentMethod(methodToDelete.id);
+      setMethodToDelete(null);
+      fetchPaymentMethods(); // Refresh the list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete payment method');
+    }
   };
 
   const handleSubmit = async (data: Omit<PaymentMethod, 'id'>) => {
@@ -149,13 +161,28 @@ export default function PaymentMethodList() {
                         {method.lastFourDigits ? `•••• ${method.lastFourDigits}` : '-'}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button
-                          type="button"
-                          onClick={() => handleEditPaymentMethod(method)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex gap-4 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleEditPaymentMethod(method)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setMethodToDelete(method);
+                            }}
+                            className="text-red-600 hover:text-red-800 flex items-center"
+                            disabled={method.isDefault}
+                            title={method.isDefault ? 'Cannot delete default payment method' : ''}
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -176,6 +203,42 @@ export default function PaymentMethodList() {
           onSubmit={handleSubmit}
           onCancel={() => setIsModalOpen(false)}
         />
+      </Modal>
+
+      <Modal
+        isOpen={methodToDelete !== null}
+        onClose={() => setMethodToDelete(null)}
+        title="Confirm Delete"
+      >
+        <div className="p-6">
+          <p className="text-sm text-gray-500 mb-4">
+            Are you sure you want to delete this payment method?
+            {methodToDelete && (
+              <span className="block mt-2 font-medium">
+                {methodToDelete.name}
+                {methodToDelete.lastFourDigits && (
+                  <span className="text-gray-500 ml-2">(**** **** **** {methodToDelete.lastFourDigits})</span>
+                )}
+              </span>
+            )}
+          </p>
+          <div className="mt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              onClick={() => setMethodToDelete(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+              onClick={handleDeletePaymentMethod}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
