@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { pool } from '@/lib/db';
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const paymentMethod = await prisma.paymentMethod.findUnique({
-      where: { id: params.id },
-    });
+    const { rows: [paymentMethod] } = await pool.query(
+      'SELECT * FROM expense_payment_methods WHERE id = $1',
+      [params.id]
+    );
 
     if (!paymentMethod) {
       return NextResponse.json(
@@ -33,10 +34,13 @@ export async function PATCH(
 ) {
   try {
     const data = await request.json();
-    const paymentMethod = await prisma.paymentMethod.update({
-      where: { id: params.id },
-      data,
-    });
+    const { rows: [paymentMethod] } = await pool.query(
+      `UPDATE expense_payment_methods 
+       SET name = $1, type = $2, last_four_digits = $3, is_default = $4
+       WHERE id = $5
+       RETURNING *`,
+      [data.name, data.type, data.lastFourDigits, data.isDefault, params.id]
+    );
 
     return NextResponse.json(paymentMethod);
   } catch (error) {
@@ -54,9 +58,10 @@ export async function DELETE(
 ) {
   try {
     // First check if this is the default payment method
-    const paymentMethod = await prisma.paymentMethod.findUnique({
-      where: { id: params.id },
-    });
+    const { rows: [paymentMethod] } = await pool.query(
+      'SELECT * FROM expense_payment_methods WHERE id = $1',
+      [params.id]
+    );
 
     if (!paymentMethod) {
       return NextResponse.json(
@@ -65,16 +70,20 @@ export async function DELETE(
       );
     }
 
-    if (paymentMethod.isDefault) {
+    if (paymentMethod.is_default) {
+      await pool.query(
+        'UPDATE expense_payment_methods SET is_default = false WHERE is_default = true'
+      );
       return NextResponse.json(
         { error: 'Cannot delete default payment method' },
         { status: 400 }
       );
     }
 
-    await prisma.paymentMethod.delete({
-      where: { id: params.id },
-    });
+    await pool.query(
+      'DELETE FROM expense_payment_methods WHERE id = $1',
+      [params.id]
+    );
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
