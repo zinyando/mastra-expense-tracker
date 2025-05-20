@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:init": "ts-node scripts/init-db.ts"
+    "db:init": "ts-node -P scripts/tsconfig.json scripts/init-db.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
@@ -46,6 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.5.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4",

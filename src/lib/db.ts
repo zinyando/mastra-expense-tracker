@@ -1,11 +1,20 @@
 import { Pool } from "pg";
+import * as dotenv from "dotenv";
+import { resolve } from "path";
 
-// Initialize the PostgreSQL pool
+dotenv.config({ path: resolve(__dirname, "../../.env.development") });
+
 export const pool = new Pool({
-  connectionString: process.env.POSTGRES_CONNECTION_STRING,
+  host: process.env.POSTGRES_HOST,
+  port: Number(process.env.POSTGRES_PORT),
+  database: process.env.POSTGRES_DATABASE,
+  user: process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
-// Create table schemas if they don't exist
 export async function initializeDatabase() {
   const client = await pool.connect();
   try {
