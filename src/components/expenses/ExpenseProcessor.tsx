@@ -2,6 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 
 type ExpenseItem = {
   description: string;
@@ -37,31 +45,54 @@ export default function ExpenseProcessor({ expense, onSave, onCancel }: ExpenseP
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+    const type = e.target.type;
+
     setFormData(prev => {
-      if (name.includes('.')) {
-        // Handle nested properties (for items)
-        const [parent, child, index] = name.split('.');
-        if (parent === 'items' && index) {
-          const items = [...(prev.items || [])];
-          const idx = parseInt(index);
-          items[idx] = {
-            ...items[idx],
-            [child]: child === 'description' ? value : parseFloat(value)
-          };
+      if (name.includes('.')) { // items.field.index
+        const [parent, child, indexStr] = name.split('.');
+        if (parent === 'items' && indexStr) {
+          const items = JSON.parse(JSON.stringify(prev.items || [])); // Deep copy for safety
+          const idx = parseInt(indexStr, 10);
+          
+          // Ensure the item exists or create a placeholder if adding new row functionality
+          while (items.length <= idx) {
+            items.push({ description: '', total: 0 }); // Adjust placeholder as needed
+          }
+          const currentItem = items[idx];
+
+          let processedValue: string | number = value;
+          if (child === 'quantity' || child === 'unitPrice' || child === 'total') {
+            processedValue = value === '' ? 0 : parseFloat(value);
+            if (isNaN(processedValue)) processedValue = 0;
+          }
+          
+          currentItem[child] = processedValue;
+          
+          // Recalculate item total if quantity or unitPrice changed
+          if ((child === 'quantity' || child === 'unitPrice') && currentItem.quantity !== undefined && currentItem.unitPrice !== undefined) {
+            currentItem.total = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+          }
+
           return { ...prev, items };
         }
         return prev;
       }
       
       // Handle flat properties
-      if (['amount', 'tax', 'tip'].includes(name)) {
-        return { ...prev, [name]: parseFloat(value) };
+      if (type === 'number' || ['amount', 'tax', 'tip'].includes(name)) {
+        // For optional fields like tax/tip, allow undefined if cleared. For amount, default to 0.
+        const isOptional = ['tax', 'tip'].includes(name);
+        const numValue = value === '' ? (isOptional ? undefined : 0) : parseFloat(value);
+        return { ...prev, [name]: (value === '' && isOptional) ? undefined : (isNaN(numValue) ? (isOptional ? undefined : 0) : numValue) };
       }
       return { ...prev, [name]: value };
     });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setFormData(prev => ({ ...prev, category: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,72 +117,58 @@ export default function ExpenseProcessor({ expense, onSave, onCancel }: ExpenseP
   const total = itemsTotal + taxAmount + tipAmount;
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg font-medium leading-6 text-gray-900">Edit Expense</h3>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Edit Expense</CardTitle>
+      </CardHeader>
+      <CardContent>
         
         {error && (
-          <div className="mt-4 rounded-md bg-red-50 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <div className="mt-2 text-sm text-red-700">{error}</div>
-              </div>
-            </div>
-          </div>
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-6">
           <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-            <div className="sm:col-span-3">
-              <label htmlFor="merchant" className="block text-sm font-medium text-gray-700">
-                Merchant
-              </label>
-              <div className="mt-1">
-                <input
-                  type="text"
-                  name="merchant"
-                  id="merchant"
-                  value={formData.merchant}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                />
-              </div>
+            <div className="sm:col-span-3 space-y-1.5">
+              <Label htmlFor="merchant">Merchant</Label>
+              <Input
+                type="text"
+                name="merchant"
+                id="merchant"
+                value={formData.merchant}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            <div className="sm:col-span-3">
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-                Date
-              </label>
-              <div className="mt-1">
-                <input
-                  type="date"
-                  name="date"
-                  id="date"
-                  value={formData.date.split('T')[0]}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                />
-              </div>
+            <div className="sm:col-span-3 space-y-1.5">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                type="date"
+                name="date"
+                id="date"
+                value={formData.date ? formData.date.split('T')[0] : ''}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            <div className="sm:col-span-3">
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-                Amount
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="sm:col-span-3 space-y-1.5">
+              <Label htmlFor="amount">Amount</Label>
+              <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 sm:text-sm">{formData.currency}</span>
+                  <span className="text-muted-foreground text-sm">{formData.currency}</span>
                 </div>
-                <input
+                <Input
                   type="number"
                   name="amount"
                   id="amount"
-                  value={formData.amount}
+                  value={formData.amount === undefined ? '' : String(formData.amount)}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 pl-12 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  className="pl-10" 
                   step="0.01"
                   min="0"
                   required
@@ -159,196 +176,158 @@ export default function ExpenseProcessor({ expense, onSave, onCancel }: ExpenseP
               </div>
             </div>
 
-            <div className="sm:col-span-3">
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                Category
-              </label>
-              <div className="mt-1">
-                <select
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                >
-                  <option value="">Select category</option>
-                  <option value="Meals">Meals</option>
-                  <option value="Travel">Travel</option>
-                  <option value="Office Supplies">Office Supplies</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Transportation">Transportation</option>
-                  <option value="Utilities">Utilities</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
+            <div className="sm:col-span-3 space-y-1.5">
+              <Label htmlFor="category">Category</Label>
+              <Select name="category" value={formData.category} onValueChange={handleCategoryChange} required>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Meals">Meals</SelectItem>
+                  <SelectItem value="Travel">Travel</SelectItem>
+                  <SelectItem value="Office Supplies">Office Supplies</SelectItem>
+                  <SelectItem value="Entertainment">Entertainment</SelectItem>
+                  <SelectItem value="Transportation">Transportation</SelectItem>
+                  <SelectItem value="Utilities">Utilities</SelectItem>
+                  <SelectItem value="Healthcare">Healthcare</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="sm:col-span-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Items</h4>
-              
+            <div className="sm:col-span-6 space-y-1.5">
+              <Label>Items</Label>
               {formData.items && formData.items.length > 0 ? (
-                <div className="overflow-hidden border border-gray-200 rounded-md">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Description
-                        </th>
-                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Quantity
-                        </th>
-                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Unit Price
-                        </th>
-                        <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {formData.items.map((item, index) => (
-                        <tr key={index}>
-                          <td className="px-3 py-2 whitespace-nowrap text-sm">
-                            <input
-                              type="text"
-                              name={`items.description.${index}`}
-                              value={item.description}
-                              onChange={handleChange}
-                              className="block w-full border-0 p-0 text-gray-900 placeholder-gray-500 focus:ring-0 sm:text-sm"
-                            />
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-sm">
-                            <input
-                              type="number"
-                              name={`items.quantity.${index}`}
-                              value={item.quantity || 1}
-                              onChange={handleChange}
-                              className="block w-full border-0 p-0 text-gray-900 placeholder-gray-500 focus:ring-0 sm:text-sm"
-                              min="1"
-                              step="1"
-                            />
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-sm">
-                            <input
-                              type="number"
-                              name={`items.unitPrice.${index}`}
-                              value={item.unitPrice || (item.total / (item.quantity || 1))}
-                              onChange={handleChange}
-                              className="block w-full border-0 p-0 text-gray-900 placeholder-gray-500 focus:ring-0 sm:text-sm"
-                              min="0"
-                              step="0.01"
-                            />
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-sm">
-                            <input
-                              type="number"
-                              name={`items.total.${index}`}
-                              value={item.total}
-                              onChange={handleChange}
-                              className="block w-full border-0 p-0 text-gray-900 placeholder-gray-500 focus:ring-0 sm:text-sm"
-                              min="0"
-                              step="0.01"
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40%]">Description</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Unit Price</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(formData.items || []).map((item, index) => (
+                      <TableRow key={index}> {/* Consider using a unique item.id if available */}
+                        <TableCell>
+                          <Input
+                            type="text"
+                            name={`items.description.${index}`}
+                            value={item.description}
+                            onChange={handleChange}
+                            className="h-8"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            name={`items.quantity.${index}`}
+                            value={String(item.quantity ?? '')}
+                            onChange={handleChange}
+                            className="h-8"
+                            min="0"
+                            step="1"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            name={`items.unitPrice.${index}`}
+                            value={String(item.unitPrice ?? '')} 
+                            onChange={handleChange}
+                            className="h-8"
+                            min="0"
+                            step="0.01"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            name={`items.total.${index}`}
+                            value={String(item.total ?? '')}
+                            onChange={handleChange} // Or make this read-only and calculated
+                            className="h-8 text-right"
+                            min="0"
+                            step="0.01"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
-                <p className="text-sm text-gray-500">No items found</p>
+                <p className="text-sm text-muted-foreground">No items found</p>
               )}
             </div>
 
-            <div className="sm:col-span-2">
-              <label htmlFor="tax" className="block text-sm font-medium text-gray-700">
-                Tax
-              </label>
-              <div className="mt-1">
-                <input
-                  type="number"
-                  name="tax"
-                  id="tax"
-                  value={formData.tax || 0}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="tax">Tax</Label>
+              <Input
+                type="number"
+                name="tax"
+                id="tax"
+                value={formData.tax === undefined ? '' : String(formData.tax)}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+              />
             </div>
 
-            <div className="sm:col-span-2">
-              <label htmlFor="tip" className="block text-sm font-medium text-gray-700">
-                Tip
-              </label>
-              <div className="mt-1">
-                <input
-                  type="number"
-                  name="tip"
-                  id="tip"
-                  value={formData.tip || 0}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="tip">Tip</Label>
+              <Input
+                type="number"
+                name="tip"
+                id="tip"
+                value={formData.tip === undefined ? '' : String(formData.tip)}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+              />
             </div>
 
-            <div className="sm:col-span-2">
-              <label htmlFor="total" className="block text-sm font-medium text-gray-700">
-                Total
-              </label>
-              <div className="mt-1">
-                <input
-                  type="number"
-                  id="total"
-                  value={total}
-                  className="block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm"
-                  disabled
-                />
-              </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="total">Total</Label>
+              <Input
+                type="number"
+                id="total"
+                value={String(total)}
+                disabled
+              />
             </div>
 
-            <div className="sm:col-span-6">
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                Notes
-              </label>
-              <div className="mt-1">
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={3}
-                  value={formData.notes || ''}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-              </div>
+            <div className="sm:col-span-6 space-y-1.5">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                name="notes"
+                rows={3}
+                value={formData.notes || ''}
+                onChange={handleChange}
+              />
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : 'Save'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+      </CardContent>
+      <CardFooter className="flex justify-end space-x-3">
+        <Button
+          variant="outline"
+          type="button"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          onClick={handleSubmit} // Attach handleSubmit here as well if form element is not implicitly submitting
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Saving...' : 'Save Expense'}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
