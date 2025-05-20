@@ -130,45 +130,10 @@ export async function getExpenses(): Promise<{ expenses: Expense[] }> {
   try {
     const response = await fetch('/api/expenses');
     const data = await handleResponse<{ expenses: Expense[] }>(response);
-    
-    // Check if we need to merge with local fallback data
-    const localExpenses = getExpensesFromLocalStorage();
-    if (localExpenses.length > 0) {
-      console.log('Including expenses from local storage fallback');
-      
-      // Convert WorkflowExpense to legacy Expense format for compatibility
-      const convertedLocalExpenses = localExpenses.map(wfExp => ({
-        id: wfExp.id,
-        amount: wfExp.amount,
-        description: wfExp.merchant, // Use merchant as description
-        categoryId: wfExp.category,   // Use category directly as categoryId
-        date: wfExp.date,
-      }));
-      
-      // Merge remote and local expenses, avoiding duplicates by ID
-      const existingIds = new Set(data.expenses.map(e => e.id));
-      const uniqueLocalExpenses = convertedLocalExpenses.filter(e => !existingIds.has(e.id));
-      
-      return {
-        expenses: [...data.expenses, ...uniqueLocalExpenses]
-      };
-    }
-    
     return data;
   } catch (error) {
-    console.error('Error fetching expenses, using local fallback only:', error);
-    
-    // If API fails completely, fall back to local storage
-    const localExpenses = getExpensesFromLocalStorage();
-    const convertedLocalExpenses = localExpenses.map(wfExp => ({
-      id: wfExp.id,
-      amount: wfExp.amount,
-      description: wfExp.merchant,
-      categoryId: wfExp.category,
-      date: wfExp.date,
-    }));
-    
-    return { expenses: convertedLocalExpenses };
+    console.error('Error fetching expenses:', error);
+    throw error;
   }
 }
 
@@ -199,31 +164,6 @@ export async function updateExpense(id: string, data: Partial<Omit<Expense, 'id'
   return handleResponse(response);
 }
 
-// Local storage key for fallback expense storage
-const EXPENSE_STORAGE_KEY = 'mastra_expenses';
-
-// Save and retrieve expenses from local storage as fallback
-function saveExpenseToLocalStorage(expense: WorkflowExpense): void {
-  try {
-    // Get existing expenses or initialize empty array
-    const existingExpenses = JSON.parse(localStorage.getItem(EXPENSE_STORAGE_KEY) || '[]');
-    existingExpenses.push(expense);
-    localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(existingExpenses));
-    console.log('Saved expense to local storage fallback');
-  } catch (error) {
-    console.error('Error saving expense to local storage:', error);
-  }
-}
-
-function getExpensesFromLocalStorage(): WorkflowExpense[] {
-  try {
-    return JSON.parse(localStorage.getItem(EXPENSE_STORAGE_KEY) || '[]');
-  } catch (error) {
-    console.error('Error retrieving expenses from local storage:', error);
-    return [];
-  }
-}
-
 // Workflow-based expense processing
 export async function processExpenseImage(imageUrl: string): Promise<WorkflowExpense> {
   const response = await fetch('/api/expenses/create', {
@@ -248,10 +188,6 @@ export async function processExpenseImage(imageUrl: string): Promise<WorkflowExp
     expense = data.expense;
     
     // If using fallback storage, save to localStorage
-    if (data.fallback) {
-      saveExpenseToLocalStorage(expense);
-    }
-    
     return expense;
   } else if (data.status === 'suspended' && data.suspendedData) {
     // Add fake ID and timestamps if they don't exist in suspended data
@@ -261,9 +197,6 @@ export async function processExpenseImage(imageUrl: string): Promise<WorkflowExp
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     } as WorkflowExpense;
-    
-    // Save to fallback storage since this is temporary
-    saveExpenseToLocalStorage(expense);
     
     return expense;
   }

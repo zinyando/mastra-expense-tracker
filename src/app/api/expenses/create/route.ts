@@ -1,18 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import expenseWorkflow from "@/mastra/workflows/expense-workflow";
-import { createClient } from "@supabase/supabase-js";
+import { pool } from "@/lib/db";
+import crypto from 'crypto';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+type ExpenseResult = {
+  id: string;
+  amount: number;
+  description: string;
+  category?: {
+    id: string;
+    name: string;
+  };
+  paymentMethod?: {
+    id: string;
+    name: string;
+  };
+  date: string;
+  merchant: string;
+  currency: string;
+};
+
+type WorkflowStepOutput = {
+  date: string;
+  merchant: string;
+  amount: number;
+  currency: string;
+  category: string;
+  items?: Array<{
+    description: string;
+    total: number;
+    quantity?: number;
+    unitPrice?: number;
+  }>;
+};
+
+type WorkflowStepBase<T> = {
+  status: 'completed' | 'failed' | 'suspended';
+  output?: T;
+  error?: string;
+};
+
+type ExtractExpenseStep = WorkflowStepBase<WorkflowStepOutput>;
+
+type WorkflowResult = {
+  status: 'suspended' | 'failed';
+  steps: {
+    'extract-expense-data': ExtractExpenseStep;
+  };
+  error?: string;
+  suspendedData?: unknown;
+};
 
 export async function POST(request: NextRequest) {
+  const client = await pool.connect();
   try {
     const { imageUrl } = await request.json();
 
@@ -27,104 +67,123 @@ export async function POST(request: NextRequest) {
 
     // Start the expense workflow
     const run = expenseWorkflow.createRun();
-    const result = await run.start({ inputData: { imageUrl } });
+    const rawResult = await run.start({ inputData: { imageUrl } });
+    const workflowResult = rawResult as unknown as WorkflowResult;
 
-    if (result.status === "success") {
-      // Log the full expense object for debugging
-      console.log("Trying to save expense to database:", JSON.stringify(result.result, null, 2));
-      
+    // Extract data from the workflow result
+    const stepResult = workflowResult.steps['extract-expense-data'];
+    
+    if (workflowResult.status === 'suspended' && stepResult.status === 'completed' && stepResult.output) {
+      const expenseData: ExpenseResult = {
+        id: crypto.randomUUID(),
+        amount: stepResult.output.amount,
+        description: stepResult.output.items?.[0]?.description || 'Unknown',
+        category: stepResult.output.category ? {
+          id: crypto.randomUUID(),
+          name: stepResult.output.category
+        } : undefined,
+        date: stepResult.output.date,
+        merchant: stepResult.output.merchant,
+        currency: stepResult.output.currency || 'USD'
+      };
+
       try {
-        // First, check if the expenses table exists
-        const { error: tableError } = await supabase
-          .from("expenses")
-          .select("id")
-          .limit(1);
-          
-        if (tableError) {
-          console.log("Error checking expenses table, table may not exist:", tableError);
-          
-          // Since we can't create tables directly through the JavaScript API,
-          // we'll use a workaround for development - storing in localStorage
-          console.log("Will use in-memory storage for this demo instead of creating a table");
-          
-          // Return success but with a note about the fallback
-          return NextResponse.json({
-            expense: result.result,
-            message: "Expense processed successfully (using fallback storage - database table not available)",
-            fallback: true
-          });
-        }
-        
-        // Store the expense in the database
-        const { data, error: dbError } = await supabase
-          .from("expenses")
-          .insert([result.result])
-          .select();
-  
-        if (dbError) {
-          console.error("Error saving to database:", {
-            error: dbError,
-            code: dbError.code,
-            message: dbError.message,
-            details: dbError.details,
-            hint: dbError.hint
-          });
-          return NextResponse.json(
-            { 
-              error: "Failed to save expense to database",
-              details: dbError.message,
-              code: dbError.code,
-              hint: dbError.hint || 'Check that the expenses table exists and has matching columns'
-            },
-            { status: 500 }
+        await client.query('BEGIN');
+
+        // Verify category exists if provided
+        if (expenseData.category?.id) {
+          const { rows: categoryRows } = await client.query(
+            'SELECT id FROM expense_categories WHERE id = $1',
+            [expenseData.category.id]
           );
+
+          if (categoryRows.length === 0) {
+            await client.query('ROLLBACK');
+            return NextResponse.json(
+              { error: "Category not found" },
+              { status: 404 }
+            );
+          }
         }
-        
-        console.log("Successfully saved expense with data:", data);
-      } catch (dbException) {
-        console.error("Exception during database operation:", dbException);
+
+        // Verify payment method exists if provided
+        if (expenseData.paymentMethod?.id) {
+          const { rows: methodRows } = await client.query(
+            'SELECT id FROM expense_payment_methods WHERE id = $1',
+            [expenseData.paymentMethod.id]
+          );
+
+          if (methodRows.length === 0) {
+            await client.query('ROLLBACK');
+            return NextResponse.json(
+              { error: "Payment method not found" },
+              { status: 404 }
+            );
+          }
+        }
+
+        // Insert the expense
+        const { rows: [newExpense] } = await client.query(`
+          INSERT INTO expenses (
+            id,
+            amount,
+            description,
+            category_id,
+            payment_method_id,
+            date,
+            merchant,
+            currency,
+            receipt_url
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *
+        `, [
+          crypto.randomUUID(),
+          expenseData.amount,
+          expenseData.description,
+          expenseData.category?.id,
+          expenseData.paymentMethod?.id,
+          expenseData.date,
+          expenseData.merchant,
+          expenseData.currency,
+          imageUrl
+        ]);
+
+        await client.query('COMMIT');
+
+        return NextResponse.json({
+          success: true,
+          expense: {
+            id: newExpense.id,
+            amount: parseFloat(newExpense.amount),
+            description: newExpense.description,
+            categoryId: newExpense.category_id,
+            paymentMethodId: newExpense.payment_method_id,
+            date: newExpense.date.toISOString().split('T')[0],
+            merchant: newExpense.merchant,
+            currency: newExpense.currency,
+            receiptUrl: newExpense.receipt_url
+          }
+        });
+      } catch (dbError) {
+        await client.query('ROLLBACK');
+        console.error("Database error:", dbError);
         return NextResponse.json(
-          { 
-            error: "Database operation failed", 
-            details: dbException instanceof Error ? dbException.message : String(dbException)
-          },
+          { error: `Failed to save expense to database: ${dbError instanceof Error ? dbError.message : 'Unknown error'}` },
           { status: 500 }
         );
       }
-
+      // Return success response with expense data
       return NextResponse.json({
-        expense: result.result,
+        status: "success",
+        expense: expenseData,
         message: "Expense processed successfully",
       });
     }
 
-    if (result.status === "suspended") {
-      // Get the last completed step's data
-      // Since we know the workflow structure, we can directly access specific steps
-      const steps = result.steps;
-      
-      // Try to get data from extract-expense-data or categorize-expense steps
-      let suspendedData = {};
-      
-      if (steps["extract-expense-data"] && steps["extract-expense-data"].status === "success") {
-        suspendedData = steps["extract-expense-data"].output;
-      }
-      
-      if (steps["categorize-expense"] && steps["categorize-expense"].status === "success") {
-        suspendedData = steps["categorize-expense"].output;
-      }
-      
-      // Return a response indicating the workflow is suspended
-      return NextResponse.json({
-        status: "suspended",
-        workflowRunId: run.runId, // Use the correct property name
-        suspendedData,
-        message: "Workflow suspended for user input",
-      });
-    }
-
+    // If we reach here, it means the workflow failed
+    console.error("Workflow error:", workflowResult);
     return NextResponse.json(
-      { error: "Failed to process expense" },
+      { error: workflowResult.error || "Failed to process expense" },
       { status: 500 }
     );
   } catch (error) {
