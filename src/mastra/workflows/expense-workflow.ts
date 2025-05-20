@@ -6,17 +6,19 @@ import { openai } from "@ai-sdk/openai";
 // Helper function to fetch categories from API
 async function fetchCategoriesFromAPI(): Promise<string[]> {
   // Make API call to fetch categories
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/categories`);
-  
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/categories`
+  );
+
   if (!response.ok) {
     throw new Error(`Failed to fetch categories: ${response.status}`);
   }
-  
+
   const data = await response.json();
   if (!data.categories?.length) {
-    throw new Error('No categories found');
+    throw new Error("No categories found");
   }
-  
+
   // Extract category names from the result
   return data.categories.map((cat: { name: string }) => cat.name);
 }
@@ -58,15 +60,24 @@ const extractExpenseData = createStep({
     const { object: expenseData } = await generateObject({
       model: openai.chat("gpt-4o"),
       schema: expenseSchema,
-      prompt: `Extract all expense information from this receipt in JSON format. Include merchant, amount, currency, date, category, and line items if available.\n\nFor the date, extract it exactly as it appears on the receipt. For the amount, extract just the number (no currency symbols). Ensure all number fields are actual numbers, not strings.\n\nImage URL: ${imageUrl}`,
+      messages: [
+        {
+          role: "system",
+          content: `You are an image data extractor assistant. Extract all expense information from this receipt in JSON format. Include merchant, amount, currency, date, category, and line items if available.\n\nFor the date, extract it exactly as it appears on the receipt. For the amount, extract just the number (no currency symbols). Ensure all number fields are actual numbers, not strings. If there is no quantity or unit price, set them to 1. If there is no tax or tip, set them to 0. If there is no notes, set it to "".`,
+        },
+        {
+          role: "user",
+          content: [{ type: "image", image: imageUrl }],
+        },
+      ],
       temperature: 0.1,
     });
 
     // Format the date to ISO if needed
     const formattedData = { ...expenseData };
-    
+
     // Try to convert date to ISO format if it's not already
-    if (formattedData.date && !formattedData.date.includes('T')) {
+    if (formattedData.date && !formattedData.date.includes("T")) {
       try {
         // Create a Date object from the string and convert to ISO
         const dateObj = new Date(formattedData.date);
@@ -75,10 +86,14 @@ const extractExpenseData = createStep({
         }
       } catch (error) {
         // If date parsing fails, keep the original string
-        console.warn('Could not convert date to ISO format:', formattedData.date, error);
+        console.warn(
+          "Could not convert date to ISO format:",
+          formattedData.date,
+          error
+        );
       }
     }
-    
+
     return expenseSchema.parse(formattedData);
   },
 });
@@ -108,10 +123,10 @@ const categorizeExpense = createStep({
     });
 
     const categoryResponse = text.trim();
-    
+
     // Try to find best matching category from our fetched list
     let bestMatch = "Other";
-    
+
     if (categoryResponse) {
       // Exact match
       if (categories.includes(categoryResponse)) {
@@ -119,7 +134,9 @@ const categorizeExpense = createStep({
       } else {
         // Fuzzy match - look for closest match in case of capitalization or minor spelling differences
         const lowerCaseResponse = categoryResponse.toLowerCase();
-        const match = categories.find(c => c.toLowerCase() === lowerCaseResponse);
+        const match = categories.find(
+          (c) => c.toLowerCase() === lowerCaseResponse
+        );
         if (match) {
           bestMatch = match;
         }
