@@ -85,7 +85,7 @@ export default function ExpenseProcessor({ expense, onSave, onCancel }: ExpenseP
         // For optional fields like tax/tip, allow undefined if cleared. For amount, default to 0.
         const isOptional = ['tax', 'tip'].includes(name);
         const numValue = value === '' ? (isOptional ? undefined : 0) : parseFloat(value);
-        return { ...prev, [name]: (value === '' && isOptional) ? undefined : (isNaN(numValue) ? (isOptional ? undefined : 0) : numValue) };
+        return { ...prev, [name]: (value === '' && isOptional) ? undefined : (numValue !== undefined && isNaN(numValue) ? (isOptional ? undefined : 0) : numValue) };
       }
       return { ...prev, [name]: value };
     });
