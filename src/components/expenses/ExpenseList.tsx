@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Expense,
   WorkflowExpense,
@@ -159,8 +160,44 @@ export default function ExpenseList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading expenses...</div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-[150px]" />
+          <Skeleton className="h-10 w-[120px]" />
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div className="flex gap-4">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-[120px]" />
+        </div>
+
+        {/* Expenses List */}
+        <div className="rounded-lg border bg-card">
+          <div className="p-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 hover:bg-accent rounded-lg">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-1/4" />
+                </div>
+                <div className="text-right space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex justify-center gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-10" />
+          ))}
+        </div>
       </div>
     );
   }

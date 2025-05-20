@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { PlusIcon, CreditCardIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PaymentMethod, getPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '@/utils/api';
 import Modal from '@/components/ui/Modal';
 import PaymentMethodForm from './PaymentMethodForm';
@@ -67,8 +68,41 @@ export default function PaymentMethodList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading payment methods...</div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-[180px]" />
+            <Skeleton className="h-5 w-[250px] mt-2" />
+          </div>
+          <Skeleton className="h-10 w-[160px]" />
+        </div>
+
+        {/* Payment Methods List */}
+        <div className="rounded-lg border bg-card divide-y">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="p-6">
+              <div className="flex items-center gap-6">
+                <Skeleton className="h-12 w-12 rounded-lg" />
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <Skeleton className="h-5 w-[120px]" />
+                      <Skeleton className="h-4 w-[180px]" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Skeleton className="h-9 w-9" />
+                      <Skeleton className="h-9 w-9" />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Skeleton className="h-2 w-full max-w-[500px]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

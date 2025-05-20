@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Category, getCategories, createCategory, updateCategory, deleteCategory } from '@/utils/api';
+import { Category, createCategory, deleteCategory, getCategories, updateCategory } from '@/utils/api';
+import { Skeleton } from '@/components/ui/skeleton';
 import Modal from '@/components/ui/Modal';
 import CategoryForm from './CategoryForm';
 
@@ -67,8 +68,38 @@ export default function CategoryList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading categories...</div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-[150px]" />
+            <Skeleton className="h-5 w-[200px] mt-2" />
+          </div>
+          <Skeleton className="h-10 w-[140px]" />
+        </div>
+
+        {/* Categories Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="rounded-lg border bg-card p-6 space-y-4">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-5 w-1/2 mb-2" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="h-2 w-4/5" />
+              </div>
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
