@@ -162,41 +162,68 @@ export default function ExpenseList() {
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-[150px]" />
-          <Skeleton className="h-10 w-[120px]" />
-        </div>
-
-        {/* Search and Filter Bar */}
-        <div className="flex gap-4">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 w-[120px]" />
-        </div>
-
-        {/* Expenses List */}
-        <div className="rounded-lg border bg-card">
-          <div className="p-1">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 p-4 hover:bg-accent rounded-lg">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-1/3" />
-                  <Skeleton className="h-3 w-1/4" />
-                </div>
-                <div className="text-right space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-              </div>
-            ))}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            <Skeleton className="h-8 w-[150px]" />
+          </h1>
+          <div>
+            <Skeleton className="h-10 w-[120px]" />
           </div>
         </div>
 
-        {/* Pagination */}
-        <div className="flex justify-center gap-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-10" />
-          ))}
+        {/* Table */}
+        <div className="mt-8 flow-root">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                        <Skeleton className="h-5 w-[60px]" />
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <Skeleton className="h-5 w-[100px]" />
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <Skeleton className="h-5 w-[80px]" />
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <Skeleton className="h-5 w-[80px]" />
+                      </th>
+                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          <Skeleton className="h-5 w-[80px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <Skeleton className="h-5 w-[200px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <Skeleton className="h-5 w-[100px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <Skeleton className="h-5 w-[80px]" />
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <div className="flex justify-end gap-2">
+                            <Skeleton className="h-8 w-8" />
+                            <Skeleton className="h-8 w-8" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

@@ -68,37 +68,66 @@ export default function CategoryList() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div>
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <Skeleton className="h-8 w-[150px]" />
-            <Skeleton className="h-5 w-[200px] mt-2" />
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h1 className="text-xl font-semibold text-gray-900">
+              <Skeleton className="h-7 w-[120px]" />
+            </h1>
+            <p className="mt-2 text-sm text-gray-700">
+              <Skeleton className="h-5 w-[200px]" />
+            </p>
           </div>
-          <Skeleton className="h-10 w-[140px]" />
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <Skeleton className="h-10 w-[140px]" />
+          </div>
         </div>
 
-        {/* Categories Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} className="rounded-lg border bg-card p-6 space-y-4">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1">
-                  <Skeleton className="h-5 w-1/2 mb-2" />
-                  <Skeleton className="h-3 w-2/3" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-2 w-full" />
-                <Skeleton className="h-2 w-4/5" />
-              </div>
-              <div className="flex justify-between items-center">
-                <Skeleton className="h-6 w-24" />
-                <Skeleton className="h-8 w-8 rounded-full" />
+        {/* Table */}
+        <div className="mt-8 flex flex-col">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                        <Skeleton className="h-5 w-[60px]" />
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <Skeleton className="h-5 w-[60px]" />
+                      </th>
+                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          <Skeleton className="h-5 w-[150px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <Skeleton className="h-4 w-4 rounded-full" />
+                            <Skeleton className="h-5 w-[80px]" />
+                          </div>
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <div className="flex gap-4 justify-end">
+                            <Skeleton className="h-5 w-[40px]" />
+                            <Skeleton className="h-4 w-4" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     );
@@ -117,7 +146,8 @@ export default function CategoryList() {
 
   return (
     <div>
-      <div className="sm:flex sm:items-center">
+      <div className="space-y-6">
+        <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-xl font-semibold text-gray-900">Categories</h1>
           <p className="mt-2 text-sm text-gray-700">
@@ -208,7 +238,7 @@ export default function CategoryList() {
           </div>
         </div>
       </div>
-
+    </div>
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

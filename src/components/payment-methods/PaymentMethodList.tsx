@@ -70,38 +70,66 @@ export default function PaymentMethodList() {
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
             <Skeleton className="h-8 w-[180px]" />
-            <Skeleton className="h-5 w-[250px] mt-2" />
+            <Skeleton className="h-4 w-[250px] mt-2" />
           </div>
-          <Skeleton className="h-10 w-[160px]" />
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <Skeleton className="h-10 w-[160px]" />
+          </div>
         </div>
 
         {/* Payment Methods List */}
-        <div className="rounded-lg border bg-card divide-y">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="p-6">
-              <div className="flex items-center gap-6">
-                <Skeleton className="h-12 w-12 rounded-lg" />
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <Skeleton className="h-5 w-[120px]" />
-                      <Skeleton className="h-4 w-[180px]" />
-                    </div>
-                    <div className="flex gap-2">
-                      <Skeleton className="h-9 w-9" />
-                      <Skeleton className="h-9 w-9" />
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <Skeleton className="h-2 w-full max-w-[500px]" />
-                  </div>
-                </div>
+        <div className="mt-8 flow-root">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-5 w-5" />
+                          <Skeleton className="h-5 w-[80px]" />
+                        </div>
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <Skeleton className="h-5 w-[100px]" />
+                      </th>
+                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                          <div className="flex items-center">
+                            <Skeleton className="h-10 w-10 rounded-lg" />
+                            <div className="ml-4">
+                              <Skeleton className="h-5 w-[150px]" />
+                              <Skeleton className="h-4 w-[100px] mt-1" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <Skeleton className="h-5 w-[120px]" />
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <div className="flex justify-end gap-2">
+                            <Skeleton className="h-8 w-8" />
+                            <Skeleton className="h-8 w-8" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     );
