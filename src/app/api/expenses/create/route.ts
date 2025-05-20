@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import expenseWorkflow from "@/mastra/workflows/expense-workflow";
 import { pool } from "@/lib/db";
-import crypto from 'crypto';
+import crypto from "crypto";
 
 type ExpenseResult = {
   id: string;
@@ -35,7 +35,7 @@ type WorkflowStepOutput = {
 };
 
 type WorkflowStepBase<T> = {
-  status: 'completed' | 'failed' | 'suspended';
+  status: "completed" | "failed" | "suspended";
   output?: T;
   error?: string;
 };
@@ -43,15 +43,20 @@ type WorkflowStepBase<T> = {
 type ExtractExpenseStep = WorkflowStepBase<WorkflowStepOutput>;
 
 type WorkflowResult = {
-  status: 'suspended' | 'failed';
+  status: "success" | "suspended" | "failed";
   steps: {
-    'extract-expense-data': ExtractExpenseStep;
+    "extract-expense-data": ExtractExpenseStep;
+    "categorize-expense": ExtractExpenseStep;
+    "save-expense": ExtractExpenseStep;
   };
   error?: string;
   suspendedData?: unknown;
+  result?: WorkflowStepOutput;
 };
 
-export async function POST(request: NextRequest) {
+export const dynamic = "force-dynamic";
+
+export const POST = async (request: NextRequest) => {
   const client = await pool.connect();
   try {
     const { imageUrl } = await request.json();
@@ -62,7 +67,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     console.log("Processing expense from image URL:", imageUrl);
 
     // Start the expense workflow
@@ -71,50 +76,61 @@ export async function POST(request: NextRequest) {
     const workflowResult = rawResult as unknown as WorkflowResult;
 
     // Extract data from the workflow result
-    const stepResult = workflowResult.steps['extract-expense-data'];
-    
-    if (workflowResult.status === 'suspended' && stepResult.status === 'completed' && stepResult.output) {
+    // For successful workflows, use the final result
+    const expenseOutput =
+      workflowResult.status === "success"
+        ? workflowResult.result
+        : workflowResult.steps["extract-expense-data"].output;
+
+    if (expenseOutput) {
       const expenseData: ExpenseResult = {
         id: crypto.randomUUID(),
-        amount: stepResult.output.amount,
-        description: stepResult.output.items?.[0]?.description || 'Unknown',
-        category: stepResult.output.category ? {
-          id: crypto.randomUUID(),
-          name: stepResult.output.category
-        } : undefined,
-        date: stepResult.output.date,
-        merchant: stepResult.output.merchant,
-        currency: stepResult.output.currency || 'USD'
+        amount: expenseOutput.amount,
+        description: expenseOutput.items?.[0]?.description || "Unknown",
+        category: expenseOutput.category
+          ? {
+              id: crypto.randomUUID(),
+              name: expenseOutput.category,
+            }
+          : undefined,
+        date: expenseOutput.date,
+        merchant: expenseOutput.merchant,
+        currency: expenseOutput.currency || "USD",
       };
 
       try {
-        await client.query('BEGIN');
+        await client.query("BEGIN");
 
-        // Verify category exists if provided
-        if (expenseData.category?.id) {
-          const { rows: categoryRows } = await client.query(
-            'SELECT id FROM expense_categories WHERE id = $1',
-            [expenseData.category.id]
+        // Create category if it doesn't exist
+        let categoryId = null;
+        if (expenseData.category?.name) {
+          const { rows: existingCategory } = await client.query(
+            "SELECT id FROM expense_categories WHERE name = $1",
+            [expenseData.category.name]
           );
 
-          if (categoryRows.length === 0) {
-            await client.query('ROLLBACK');
-            return NextResponse.json(
-              { error: "Category not found" },
-              { status: 404 }
+          if (existingCategory.length > 0) {
+            categoryId = existingCategory[0].id;
+          } else {
+            const {
+              rows: [newCategory],
+            } = await client.query(
+              "INSERT INTO expense_categories (id, name) VALUES ($1, $2) RETURNING id",
+              [expenseData.category.id, expenseData.category.name]
             );
+            categoryId = newCategory.id;
           }
         }
 
         // Verify payment method exists if provided
         if (expenseData.paymentMethod?.id) {
           const { rows: methodRows } = await client.query(
-            'SELECT id FROM expense_payment_methods WHERE id = $1',
+            "SELECT id FROM expense_payment_methods WHERE id = $1",
             [expenseData.paymentMethod.id]
           );
 
           if (methodRows.length === 0) {
-            await client.query('ROLLBACK');
+            await client.query("ROLLBACK");
             return NextResponse.json(
               { error: "Payment method not found" },
               { status: 404 }
@@ -123,7 +139,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Insert the expense
-        const { rows: [newExpense] } = await client.query(`
+        const {
+          rows: [newExpense],
+        } = await client.query(
+          `
           INSERT INTO expenses (
             id,
             amount,
@@ -136,19 +155,21 @@ export async function POST(request: NextRequest) {
             receipt_url
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING *
-        `, [
-          crypto.randomUUID(),
-          expenseData.amount,
-          expenseData.description,
-          expenseData.category?.id,
-          expenseData.paymentMethod?.id,
-          expenseData.date,
-          expenseData.merchant,
-          expenseData.currency,
-          imageUrl
-        ]);
+        `,
+          [
+            crypto.randomUUID(),
+            expenseData.amount,
+            expenseData.description,
+            categoryId,
+            expenseData.paymentMethod?.id,
+            expenseData.date,
+            expenseData.merchant,
+            expenseData.currency,
+            imageUrl,
+          ]
+        );
 
-        await client.query('COMMIT');
+        await client.query("COMMIT");
 
         return NextResponse.json({
           success: true,
@@ -158,26 +179,22 @@ export async function POST(request: NextRequest) {
             description: newExpense.description,
             categoryId: newExpense.category_id,
             paymentMethodId: newExpense.payment_method_id,
-            date: newExpense.date.toISOString().split('T')[0],
+            date: newExpense.date.toISOString().split("T")[0],
             merchant: newExpense.merchant,
             currency: newExpense.currency,
-            receiptUrl: newExpense.receipt_url
-          }
+            receiptUrl: newExpense.receipt_url,
+          },
         });
       } catch (dbError) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         console.error("Database error:", dbError);
         return NextResponse.json(
-          { error: `Failed to save expense to database: ${dbError instanceof Error ? dbError.message : 'Unknown error'}` },
+          {
+            error: `Failed to save expense to database: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
+          },
           { status: 500 }
         );
       }
-      // Return success response with expense data
-      return NextResponse.json({
-        status: "success",
-        expense: expenseData,
-        message: "Expense processed successfully",
-      });
     }
 
     // If we reach here, it means the workflow failed
@@ -188,20 +205,20 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error processing expense:", error);
-    
+
     // Extract more detailed error information
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     // Provide more helpful error response
     return NextResponse.json(
-      { 
-        error: "Error processing expense", 
+      {
+        error: "Error processing expense",
         details: errorMessage,
         // Only include stack in development
-        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined 
+        stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
       },
       { status: 500 }
     );
   }
-}
+};
