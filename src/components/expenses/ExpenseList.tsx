@@ -1,8 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
-import { Expense, WorkflowExpense, getExpenses, getExpenseById, processExpenseImage, updateWorkflowExpense } from "@/utils/api";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  Expense,
+  WorkflowExpense,
+  getExpenses,
+  getExpenseById,
+  processExpenseImage,
+  updateWorkflowExpense,
+  deleteExpense,
+} from "@/utils/api";
 import Modal from "@/components/ui/Modal";
 import ExpenseUpload from "./ExpenseUpload";
 import ExpenseProcessor from "./ExpenseProcessor";
@@ -13,14 +21,31 @@ export default function ExpenseList() {
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(null);
+  const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(
+    null
+  );
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
-  
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+
   // Function to handle editing an existing expense
+  const handleDeleteExpense = async () => {
+    if (!expenseToDelete) return;
+    try {
+      setError(null);
+      await deleteExpense(expenseToDelete.id);
+      setExpenseToDelete(null);
+      // Refresh the expenses list after deletion
+      const { expenses: updatedExpenses } = await getExpenses();
+      setExpenses(updatedExpenses);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete expense");
+    }
+  };
+
   const handleEditExpense = async (expense: Expense) => {
     try {
       setError(null);
-      
+
       // Show loading state while we fetch the complete expense details
       const loadingExpense: WorkflowExpense = {
         id: expense.id,
@@ -33,14 +58,14 @@ export default function ExpenseList() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
+
       setCurrentExpense(loadingExpense);
       setIsEditModalOpen(true);
-      
+
       // Try to fetch the complete expense details from the API
       try {
         const completeExpense = await getExpenseById(expense.id);
-        
+
         // If we get the expense from the API, update with more details if available
         const updatedWorkflowExpense: WorkflowExpense = {
           ...loadingExpense,
@@ -48,61 +73,67 @@ export default function ExpenseList() {
           category: completeExpense.categoryId || loadingExpense.category,
           // Add any additional fields from the API response
         };
-        
+
         setCurrentExpense(updatedWorkflowExpense);
       } catch (fetchError) {
         // If API fetch fails, we'll just use the basic data we already have
-        console.warn('Could not fetch complete expense details:', fetchError);
+        console.warn("Could not fetch complete expense details:", fetchError);
         // No need to close the modal or show error as we can still edit with basic info
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to prepare expense for editing');
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to prepare expense for editing"
+      );
       setIsEditModalOpen(false);
     }
   };
-  
+
   // Helper function to format dates consistently
   const formatDate = (dateString: string): string => {
     try {
-      if (!dateString) return '';
-      
+      if (!dateString) return "";
+
       // Create a Date object from the string
       const date = new Date(dateString);
-      
+
       // Check if date is valid
       if (isNaN(date.getTime())) {
         // Try to handle special cases
-        if (typeof dateString === 'string' && dateString.includes('T')) {
+        if (typeof dateString === "string" && dateString.includes("T")) {
           // It's probably an ISO string with formatting issues
-          return dateString.split('T')[0]; // Extract just the YYYY-MM-DD part
+          return dateString.split("T")[0]; // Extract just the YYYY-MM-DD part
         }
         return dateString; // Return original if we can't parse it
       }
-      
+
       // Format as YYYY-MM-DD
-      return date.toISOString().split('T')[0];
+      return date.toISOString().split("T")[0];
     } catch (error) {
-      console.error('Error formatting date:', error);
+      console.error("Error formatting date:", error);
       return dateString; // Return original string on error
     }
   };
-  
+
   // Function to process an uploaded receipt image using the expense workflow
   const handleProcessExpense = async (imageUrl: string) => {
     try {
       const processedExpense = await processExpenseImage(imageUrl);
-      
+
       // Show the expense in edit mode
       setCurrentExpense(processedExpense);
       setIsUploadModalOpen(false);
       setIsEditModalOpen(true);
-      
+
       // Refresh the expenses list
       const refreshedData = await getExpenses();
       setExpenses(refreshedData.expenses);
     } catch (error) {
-      console.error('Error processing expense:', error);
-      setError(error instanceof Error ? error.message : 'Failed to process expense');
+      console.error("Error processing expense:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to process expense"
+      );
     } finally {
       setIsProcessingReceipt(false);
     }
@@ -217,13 +248,24 @@ export default function ExpenseList() {
                         }).format(expense.amount)}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button
-                          type="button"
-                          onClick={() => handleEditExpense(expense)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex gap-4 justify-end">
+                          <button
+                            onClick={() => handleEditExpense(expense)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setExpenseToDelete(expense);
+                            }}
+                            className="text-red-600 hover:text-red-800 flex items-center"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -262,7 +304,7 @@ export default function ExpenseList() {
                 }
 
                 const data = await response.json();
-                
+
                 // Then process the uploaded file with the workflow
                 if (data.url) {
                   setIsProcessingReceipt(true);
@@ -271,7 +313,9 @@ export default function ExpenseList() {
               } catch (error) {
                 console.error("Error uploading file:", error);
                 setError(
-                  error instanceof Error ? error.message : "Failed to upload file"
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to upload file"
                 );
                 setIsUploadModalOpen(false);
               }
@@ -279,7 +323,7 @@ export default function ExpenseList() {
           />
         )}
       </Modal>
-      
+
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -292,7 +336,7 @@ export default function ExpenseList() {
               try {
                 // Save the updated expense using our utility function
                 await updateWorkflowExpense(updatedExpense.id, updatedExpense);
-                
+
                 // Refresh expenses and close the modal
                 const updatedData = await getExpenses();
                 setExpenses(updatedData.expenses);
@@ -309,6 +353,42 @@ export default function ExpenseList() {
             }}
           />
         )}
+      </Modal>
+
+      <Modal
+        isOpen={expenseToDelete !== null}
+        onClose={() => setExpenseToDelete(null)}
+        title="Confirm Delete"
+      >
+        <div className="p-6">
+          <p className="text-sm text-gray-500 mb-4">
+            Are you sure you want to delete this expense?
+            {expenseToDelete && (
+              <span className="block mt-2 font-medium">
+                {expenseToDelete.description} - {new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                }).format(expenseToDelete.amount)}
+              </span>
+            )}
+          </p>
+          <div className="mt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              onClick={() => setExpenseToDelete(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+              onClick={handleDeleteExpense}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
