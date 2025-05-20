@@ -9,6 +9,7 @@ import StatCard from '@/components/dashboard/StatCard';
 import ExpenseChart from '@/components/dashboard/ExpenseChart';
 import RecentExpenses from '@/components/dashboard/RecentExpenses';
 import { DashboardStats, getDashboardStats } from '@/utils/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -33,8 +34,70 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading dashboard data...</div>
+      <div className="space-y-6">
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="rounded-lg bg-white px-6 py-8 shadow">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Skeleton className="h-12 w-12 rounded-lg" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <Skeleton className="h-5 w-24" />
+                <div className="mt-2">
+                  <Skeleton className="h-8 w-32" />
+                </div>
+                <div className="mt-2 flex items-center space-x-2">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg bg-white px-6 py-8 shadow">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Skeleton className="h-12 w-12 rounded-lg" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <Skeleton className="h-5 w-24" />
+                <div className="mt-2">
+                  <Skeleton className="h-8 w-16" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts and Recent Expenses */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Expense Chart */}
+          <div className="rounded-lg bg-white p-6 shadow">
+            <Skeleton className="h-6 w-48 mb-6" />
+            <div className="aspect-[4/3]">
+              <Skeleton className="h-full w-full rounded-lg" />
+            </div>
+          </div>
+
+          {/* Recent Expenses */}
+          <div className="rounded-lg bg-white p-6 shadow">
+            <Skeleton className="h-6 w-48 mb-6" />
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div>
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24 mt-1" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
