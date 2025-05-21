@@ -3,6 +3,8 @@ import expenseWorkflow from "@/mastra/workflows/expense-workflow";
 import { pool } from "@/lib/db";
 import crypto from "crypto";
 
+// This local ExpenseResult type is an intermediate representation.
+// The final response aims to match the global Expense type.
 type ExpenseResult = {
   id: string;
   amount: number;
@@ -20,6 +22,7 @@ type ExpenseResult = {
   currency: string;
   tax: number;
   tip: number;
+  notes?: string; // Added notes
 };
 
 type WorkflowStepOutput = {
@@ -36,6 +39,7 @@ type WorkflowStepOutput = {
   }>;
   tax?: number;
   tip?: number;
+  notes?: string; // Added notes to workflow output type if it can provide it
 };
 
 type WorkflowStepBase<T> = {
@@ -101,7 +105,8 @@ export const POST = async (request: NextRequest) => {
         merchant: expenseOutput.merchant,
         currency: expenseOutput.currency || "USD",
         tax: expenseOutput.tax ?? 0,
-        tip: expenseOutput.tip ?? 0
+        tip: expenseOutput.tip ?? 0,
+        notes: expenseOutput.notes // Assuming workflow might provide notes
       };
 
       try {
@@ -161,8 +166,9 @@ export const POST = async (request: NextRequest) => {
             receipt_url,
             items,
             tax,
-            tip
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            tip,
+            notes
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING *
         `,
           [
@@ -178,10 +184,25 @@ export const POST = async (request: NextRequest) => {
             expenseOutput.items ? JSON.stringify(expenseOutput.items) : null,
             expenseOutput.tax ?? 0,
             expenseOutput.tip ?? 0,
+            expenseData.notes || null,
           ]
         );
 
         await client.query("COMMIT");
+
+        let categoryName = null;
+        if (newExpense.category_id) {
+          const { rows: catRows } = await client.query('SELECT name FROM expense_categories WHERE id = $1', [newExpense.category_id]);
+          if (catRows.length > 0) categoryName = catRows[0].name;
+        }
+
+        let paymentMethodName = null;
+        // Note: paymentMethod is not strongly typed in expenseData for name, so we only use ID here.
+        // If paymentMethod name is needed, workflow/expenseData needs to ensure it's available or fetched.
+        if (newExpense.payment_method_id) {
+          const { rows: pmRows } = await client.query('SELECT name FROM expense_payment_methods WHERE id = $1', [newExpense.payment_method_id]);
+          if (pmRows.length > 0) paymentMethodName = pmRows[0].name;
+        }
 
         return NextResponse.json({
           success: true,
@@ -195,9 +216,14 @@ export const POST = async (request: NextRequest) => {
             merchant: newExpense.merchant,
             currency: newExpense.currency,
             receiptUrl: newExpense.receipt_url,
-            items: newExpense.items,
-            tax: parseFloat(newExpense.tax) || 0,
-            tip: parseFloat(newExpense.tip) || 0,
+            items: newExpense.items || undefined, // Ensure it's undefined if null/empty
+            tax: newExpense.tax ? parseFloat(newExpense.tax) : undefined,
+            tip: newExpense.tip ? parseFloat(newExpense.tip) : undefined,
+            notes: newExpense.notes || undefined,
+            categoryName: categoryName,
+            paymentMethodName: paymentMethodName,
+            createdAt: new Date(newExpense.created_at).toISOString(),
+            updatedAt: new Date(newExpense.updated_at).toISOString(),
           },
         });
       } catch (dbError) {

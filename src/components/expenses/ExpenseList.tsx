@@ -40,10 +40,13 @@ export default function ExpenseList() {
   const overallError = errorExpenses || errorCategories;
 
   const categoriesMap = useMemo(() => {
-    return categoriesList.reduce((acc, category) => {
-      acc[category.id] = category;
-      return acc;
-    }, {} as Record<string, Category>);
+    return categoriesList.reduce(
+      (acc, category) => {
+        acc[category.id] = category;
+        return acc;
+      },
+      {} as Record<string, Category>
+    );
   }, [categoriesList]);
 
   // Function to handle deleting an expense
@@ -76,12 +79,12 @@ export default function ExpenseList() {
         createdAt: expense.createdAt || new Date().toISOString(), // Prefer existing timestamps
         updatedAt: expense.updatedAt || new Date().toISOString(),
         // Ensure all required fields from 'Expense' type are present
-        paymentMethodId: expense.paymentMethodId, 
+        paymentMethodId: expense.paymentMethodId,
         tax: expense.tax,
         tip: expense.tip,
         notes: expense.notes,
         categoryName: expense.categoryName,
-        paymentMethodName: expense.paymentMethodName
+        paymentMethodName: expense.paymentMethodName,
       };
 
       setCurrentExpense(loadingExpense);
@@ -111,17 +114,25 @@ export default function ExpenseList() {
           setCurrentExpense(updatedWorkflowExpense);
         } else {
           // If store couldn't fetch/find, use basic data (though store's fetch should handle errors)
-          console.warn("Could not fetch complete expense details via store, using basic data.");
-          setCurrentExpense(loadingExpense); 
+          console.warn(
+            "Could not fetch complete expense details via store, using basic data."
+          );
+          setCurrentExpense(loadingExpense);
         }
       } catch (fetchError) {
-        console.warn("Error fetching complete expense details via store:", fetchError);
+        console.warn(
+          "Error fetching complete expense details via store:",
+          fetchError
+        );
         setCurrentExpense(loadingExpense); // Fallback to basic data
         // The store's error state (errorExpenses) should reflect this failure.
       }
     } catch (error) {
-       console.error("Failed to prepare expense for editing (local component):", error);
-       // setError(error instanceof Error ? error.message : "Failed to prepare expense for editing");
+      console.error(
+        "Failed to prepare expense for editing (local component):",
+        error
+      );
+      // setError(error instanceof Error ? error.message : "Failed to prepare expense for editing");
       setIsEditModalOpen(false);
     }
   };
@@ -165,13 +176,17 @@ export default function ExpenseList() {
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ message: 'File upload failed with status: ' + uploadResponse.status }));
-        throw new Error(errorData.message || 'File upload failed');
+        const errorData = await uploadResponse
+          .json()
+          .catch(() => ({
+            message: "File upload failed with status: " + uploadResponse.status,
+          }));
+        throw new Error(errorData.message || "File upload failed");
       }
 
       const uploadResult = await uploadResponse.json();
       if (!uploadResult.url) {
-        throw new Error('File upload did not return a URL.');
+        throw new Error("File upload did not return a URL.");
       }
 
       const imageUrl = uploadResult.url;
@@ -205,9 +220,7 @@ export default function ExpenseList() {
       <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Expenses
-          </h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Expenses</h1>
           <div>
             <Skeleton className="h-10 w-[120px]" />
           </div>
@@ -221,23 +234,65 @@ export default function ExpenseList() {
                 <table className="min-w-full divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Merchant</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
-                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
+                      <th
+                        scope="col"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                      >
+                        Date
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Merchant
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Description
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Category
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Amount
+                      </th>
+                      <th
+                        scope="col"
+                        className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                      >
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {[...Array(5)].map((_, index) => (
                       <tr key={`skeleton-${index}`}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6"><Skeleton className="h-4 w-[80px]" /></td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[120px]" /></td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[150px]" /></td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[100px]" /></td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[60px]" /></td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"><Skeleton className="h-4 w-[50px]" /></td>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6">
+                          <Skeleton className="h-4 w-[80px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <Skeleton className="h-4 w-[120px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <Skeleton className="h-4 w-[150px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <Skeleton className="h-4 w-[100px]" />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <Skeleton className="h-4 w-[60px]" />
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <Skeleton className="h-4 w-[50px]" />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -253,10 +308,16 @@ export default function ExpenseList() {
   if (overallError) {
     return (
       <div className="text-center py-10 px-4 sm:px-6 lg:px-8">
-        <p className="text-red-500">Error loading data: {overallError?.message || 'An unknown error occurred'}</p>
-        <button 
-          onClick={() => { fetchExpenses(); fetchCategories(); }} 
-          className="mt-4 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        <p className="text-red-500">
+          Error loading data:{" "}
+          {overallError?.message || "An unknown error occurred"}
+        </p>
+        <button
+          onClick={() => {
+            fetchExpenses();
+            fetchCategories();
+          }}
+          className="mt-4 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-indigo-600"
         >
           Try Again
         </button>
@@ -268,16 +329,19 @@ export default function ExpenseList() {
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold leading-6 text-gray-900">Expenses</h1>
+          <h1 className="text-2xl font-semibold leading-6 text-gray-900">
+            Expenses
+          </h1>
           <p className="mt-2 text-sm text-gray-700">
-            A list of all your expenses including their date, merchant, category, and amount.
+            A list of all your expenses including their date, merchant,
+            category, and amount.
           </p>
         </div>
         <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
           <button
             type="button"
             onClick={() => setIsUploadModalOpen(true)}
-            className="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-indigo-600"
           >
             <PlusIcon className="h-5 w-5 -ml-0.5 mr-1.5 inline" />
             Add Expense
@@ -292,12 +356,42 @@ export default function ExpenseList() {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Merchant</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
+                    <th
+                      scope="col"
+                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                    >
+                      Date
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Merchant
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Description
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Category
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Amount
+                    </th>
+                    <th
+                      scope="col"
+                      className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                    >
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -307,17 +401,33 @@ export default function ExpenseList() {
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                           {formatDate(exp.date)}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{exp.merchant}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 truncate max-w-xs">{exp.description}</td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {categoriesMap[exp.categoryId]?.name || exp.categoryId}
+                          {exp.merchant}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 truncate max-w-xs">
+                          {exp.description}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: exp.currency || 'USD' }).format(exp.amount)}
+                          {categoriesMap[exp.categoryId]?.name ||
+                            exp.categoryId}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: exp.currency || "USD",
+                          }).format(exp.amount)}
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <button onClick={() => handleEditExpense(exp)} className="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
-                          <button onClick={() => setExpenseToDelete(exp)} className="text-red-600 hover:text-red-900">
+                          <button
+                            onClick={() => handleEditExpense(exp)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setExpenseToDelete(exp)}
+                            className="text-red-600 hover:text-red-900"
+                          >
                             <TrashIcon className="h-5 w-5 inline" />
                           </button>
                         </td>
@@ -325,8 +435,12 @@ export default function ExpenseList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center py-10 text-gray-500">
-                        No expenses found. Click &quot;Add Expense&quot; to get started.
+                      <td
+                        colSpan={6}
+                        className="text-center py-10 text-gray-500"
+                      >
+                        No expenses found. Click &quot;Add Expense&quot; to get
+                        started.
                       </td>
                     </tr>
                   )}
@@ -337,46 +451,58 @@ export default function ExpenseList() {
         </div>
       </div>
 
-      <Modal isOpen={isUploadModalOpen} onClose={() => {if (!isProcessingReceipt) setIsUploadModalOpen(false);}} title="Upload Expense Receipt">
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={() => {
+          if (!isProcessingReceipt) setIsUploadModalOpen(false);
+        }}
+        title="Upload Expense Receipt"
+      >
         {isProcessingReceipt ? (
           <div className="flex flex-col items-center justify-center p-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             <p className="mt-4 text-sm text-gray-600">Processing receipt...</p>
           </div>
         ) : (
-          <ExpenseUpload 
-            onUpload={handleFileUploadAndProcess} 
-          />
+          <ExpenseUpload onUpload={handleFileUploadAndProcess} />
         )}
       </Modal>
 
-      <Modal 
-        isOpen={isEditModalOpen} 
-        onClose={() => { setIsEditModalOpen(false); setCurrentExpense(null); }} 
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setCurrentExpense(null);
+        }}
         title={currentExpense?.id ? "Edit Expense" : "Add New Expense"}
       >
         {currentExpense ? (
-          <ExpenseProcessor 
-            expense={currentExpense} 
-            categories={categoriesList} 
-            onSave={(_savedExpense) => { 
-              setIsEditModalOpen(false); 
-              setCurrentExpense(null); 
-            }} 
-            onClose={() => { 
-              setIsEditModalOpen(false); 
-              setCurrentExpense(null); 
+          <ExpenseProcessor
+            expense={currentExpense}
+            categories={categoriesList}
+            onSave={() => {
+              setIsEditModalOpen(false);
+              setCurrentExpense(null);
+            }}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setCurrentExpense(null);
             }}
           />
         ) : null}
       </Modal>
 
-      <Modal isOpen={!!expenseToDelete} onClose={() => setExpenseToDelete(null)} title="Confirm Delete Expense">
+      <Modal
+        isOpen={!!expenseToDelete}
+        onClose={() => setExpenseToDelete(null)}
+        title="Confirm Delete Expense"
+      >
         {expenseToDelete && (
           <div>
             <p className="text-sm text-gray-500">
-              Are you sure you want to delete the expense for &quot;{expenseToDelete.merchant}&quot; on {formatDate(expenseToDelete.date)}?
-              This action cannot be undone.
+              Are you sure you want to delete the expense for &quot;
+              {expenseToDelete.merchant}&quot; on{" "}
+              {formatDate(expenseToDelete.date)}? This action cannot be undone.
             </p>
             <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row-reverse gap-3">
               <button

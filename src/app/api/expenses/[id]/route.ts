@@ -20,6 +20,11 @@ export async function GET(
         e.merchant,
         e.currency,
         e.items,
+        e.tax,
+        e.tip,
+        e.notes,
+        e.created_at,
+        e.updated_at,
         c.name as category_name,
         pm.name as payment_method_name
       FROM expenses e
@@ -40,10 +45,15 @@ export async function GET(
       categoryName: rows[0].category_name,
       paymentMethodId: rows[0].payment_method_id,
       paymentMethodName: rows[0].payment_method_name,
-      date: rows[0].date.toISOString().split('T')[0],
+      date: new Date(rows[0].date).toISOString().split('T')[0],
       merchant: rows[0].merchant,
       currency: rows[0].currency,
-      items: rows[0].items
+      items: rows[0].items || undefined,
+      tax: rows[0].tax ? parseFloat(rows[0].tax) : undefined,
+      tip: rows[0].tip ? parseFloat(rows[0].tip) : undefined,
+      notes: rows[0].notes || undefined,
+      createdAt: new Date(rows[0].created_at).toISOString(),
+      updatedAt: new Date(rows[0].updated_at).toISOString()
     };
 
     return NextResponse.json(expense);
@@ -65,7 +75,8 @@ export async function PUT(
   const client = await pool.connect();
   try {
     const { id } = params;
-    const updates = await request.json();
+    const { amount, description, categoryId, paymentMethodId, date, merchant, currency, items, tax, tip, notes } = await request.json();
+    const updates = { amount, description, categoryId, paymentMethodId, date, merchant, currency, items, tax, tip, notes }; // Reconstruct for clarity if needed or use directly
     
     // Validate required fields
     if (!updates.amount || !updates.description || !updates.categoryId || !updates.date) {
@@ -129,9 +140,13 @@ export async function PUT(
         date = $5,
         merchant = $6,
         currency = $7,
-        items = $8
-      WHERE id = $9
-      RETURNING *
+        items = $8,
+        tax = $9,
+        tip = $10,
+        notes = $11,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $12
+      RETURNING id, amount, description, category_id, payment_method_id, date, merchant, currency, items, tax, tip, notes, created_at, updated_at
     `, [
       updates.amount,
       updates.description,
@@ -140,9 +155,24 @@ export async function PUT(
       updates.date,
       updates.merchant,
       updates.currency || 'USD',
-      updates.items ? JSON.stringify(updates.items) : null,
+      updates.items || null, // Assuming items are already in JSON format or your DB handles it
+      updates.tax || null,
+      updates.tip || null,
+      updates.notes || null,
       id
     ]);
+
+    let categoryName = null;
+    if (updatedExpense.category_id) {
+      const { rows: catRows } = await client.query('SELECT name FROM expense_categories WHERE id = $1', [updatedExpense.category_id]);
+      if (catRows.length > 0) categoryName = catRows[0].name;
+    }
+
+    let paymentMethodName = null;
+    if (updatedExpense.payment_method_id) {
+      const { rows: pmRows } = await client.query('SELECT name FROM expense_payment_methods WHERE id = $1', [updatedExpense.payment_method_id]);
+      if (pmRows.length > 0) paymentMethodName = pmRows[0].name;
+    }
 
     await client.query('COMMIT');
 
@@ -151,11 +181,18 @@ export async function PUT(
       amount: parseFloat(updatedExpense.amount),
       description: updatedExpense.description,
       categoryId: updatedExpense.category_id,
+      categoryName: categoryName,
       paymentMethodId: updatedExpense.payment_method_id,
-      date: updatedExpense.date.toISOString().split('T')[0],
+      paymentMethodName: paymentMethodName,
+      date: new Date(updatedExpense.date).toISOString().split('T')[0],
       merchant: updatedExpense.merchant,
       currency: updatedExpense.currency,
-      items: updatedExpense.items
+      items: updatedExpense.items || undefined,
+      tax: updatedExpense.tax ? parseFloat(updatedExpense.tax) : undefined,
+      tip: updatedExpense.tip ? parseFloat(updatedExpense.tip) : undefined,
+      notes: updatedExpense.notes || undefined,
+      createdAt: new Date(updatedExpense.created_at).toISOString(),
+      updatedAt: new Date(updatedExpense.updated_at).toISOString(),
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -173,18 +210,32 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const client = await pool.connect();
   try {
     const { id } = params;
 
-    console.log(`Deleting expense with id: ${id}`);
+    await client.query('BEGIN');
 
-    // TODO: Replace with actual database delete
-    // Return success response
+    const deleteResult = await client.query(
+      'DELETE FROM expenses WHERE id = $1 RETURNING id',
+      [id]
+    );
+
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    }
+
+    await client.query('COMMIT');
     return new NextResponse(null, { status: 204 });
-  } catch {
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting expense:', error);
     return NextResponse.json(
-      { error: "Failed to delete expense" },
+      { error: `Failed to delete expense: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }
