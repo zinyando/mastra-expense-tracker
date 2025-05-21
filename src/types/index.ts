@@ -43,6 +43,8 @@ export interface Expense {
   updatedAt: string;
 }
 
+export type WorkflowExpense = Expense;
+
 export interface DashboardStats {
   totalExpenses: number;
   activeCategories: number;

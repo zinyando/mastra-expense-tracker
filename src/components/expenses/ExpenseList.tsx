@@ -1,95 +1,127 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Expense,
-  WorkflowExpense,
-  Category,
-  getExpenses,
-  getExpenseById,
-  processExpenseImage,
-  updateWorkflowExpense,
-  deleteExpense,
-  getCategories,
-} from "@/utils/api";
+import { Expense, WorkflowExpense, Category } from "@/types"; // Assuming WorkflowExpense and Category are in @/types
+import { processExpenseImage } from "@/utils/api"; // updateWorkflowExpense is likely handled in ExpenseProcessor
+import { useExpenseStore } from "@/store/expenseStore";
+import { useCategoryStore } from "@/store/categoryStore";
 import Modal from "@/components/ui/Modal";
 import ExpenseUpload from "./ExpenseUpload";
 import ExpenseProcessor from "./ExpenseProcessor";
 
 export default function ExpenseList() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Record<string, Category>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    expenses,
+    isLoading: isLoadingExpenses,
+    error: errorExpenses,
+    fetchExpenses,
+    fetchExpenseById,
+    deleteExpense: deleteExpenseFromStore,
+  } = useExpenseStore();
+
+  const {
+    categories: categoriesList,
+    isLoading: isLoadingCategories,
+    error: errorCategories,
+    fetchCategories,
+  } = useCategoryStore();
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(
     null
   );
-  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false); // This might be managed inside ExpenseUpload or Processor
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
-  // Function to handle editing an existing expense
+  const overallLoading = isLoadingExpenses || isLoadingCategories;
+  const overallError = errorExpenses || errorCategories;
+
+  const categoriesMap = useMemo(() => {
+    return categoriesList.reduce((acc, category) => {
+      acc[category.id] = category;
+      return acc;
+    }, {} as Record<string, Category>);
+  }, [categoriesList]);
+
+  // Function to handle deleting an expense
   const handleDeleteExpense = async () => {
     if (!expenseToDelete) return;
     try {
-      setError(null);
-      await deleteExpense(expenseToDelete.id);
-      setExpenseToDelete(null);
-      // Refresh the expenses list after deletion
-      const { expenses: updatedExpenses } = await getExpenses();
-      setExpenses(updatedExpenses);
+      // Error state will be handled by the store, component can listen if needed
+      await deleteExpenseFromStore(expenseToDelete.id);
+      setExpenseToDelete(null); // Close confirmation modal or clear selection
+      // The store update will trigger a re-render with the updated expenses list
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete expense");
+      // Optionally, handle/display error specific to this action if not covered by global store error
+      console.error("Delete expense error (local component):", err);
+      // setError(err instanceof Error ? err.message : "Failed to delete expense"); // This local error state might be redundant
     }
   };
 
   const handleEditExpense = async (expense: Expense) => {
     try {
-      setError(null);
-
       // Show loading state while we fetch the complete expense details
       const loadingExpense: WorkflowExpense = {
         id: expense.id,
-        merchant: expense.description,
+        merchant: expense.merchant, // Use expense.merchant
+        description: expense.description, // Add description field
         amount: expense.amount,
-        currency: "USD",
+        currency: "USD", // Ensure this is correct or from expense.currency
         date: expense.date,
         categoryId: expense.categoryId,
-        items: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        items: expense.items || [], // Use existing items if available
+        createdAt: expense.createdAt || new Date().toISOString(), // Prefer existing timestamps
+        updatedAt: expense.updatedAt || new Date().toISOString(),
+        // Ensure all required fields from 'Expense' type are present
+        paymentMethodId: expense.paymentMethodId, 
+        tax: expense.tax,
+        tip: expense.tip,
+        notes: expense.notes,
+        categoryName: expense.categoryName,
+        paymentMethodName: expense.paymentMethodName
       };
 
       setCurrentExpense(loadingExpense);
       setIsEditModalOpen(true);
 
-      // Try to fetch the complete expense details from the API
+      // Try to fetch the complete expense details using the store action
       try {
-        const completeExpense = await getExpenseById(expense.id);
+        const completeExpense = await fetchExpenseById(expense.id); // This ensures it's in the store and returns it
 
-        // If we get the expense from the API, update with more details if available
-        const updatedWorkflowExpense: WorkflowExpense = {
-          ...loadingExpense,
-          merchant: completeExpense.description || loadingExpense.merchant,
-          categoryId: completeExpense.categoryId || loadingExpense.categoryId,
-          // Add any additional fields from the API response
-        };
-
-        setCurrentExpense(updatedWorkflowExpense);
+        if (completeExpense) {
+          const updatedWorkflowExpense: WorkflowExpense = {
+            // Ensure WorkflowExpense includes all necessary fields from Expense
+            id: completeExpense.id,
+            merchant: completeExpense.merchant || loadingExpense.merchant, // Prefer completeExpense.merchant directly
+            amount: completeExpense.amount,
+            currency: completeExpense.currency,
+            date: completeExpense.date,
+            categoryId: completeExpense.categoryId,
+            items: completeExpense.items || [],
+            description: completeExpense.description, // Add if WorkflowExpense has it
+            // categoryName: completeExpense.categoryName, // Add if needed by WorkflowExpense
+            // paymentMethodId: completeExpense.paymentMethodId, // Add if needed
+            // paymentMethodName: completeExpense.paymentMethodName, // Add if needed
+            createdAt: completeExpense.createdAt,
+            updatedAt: completeExpense.updatedAt,
+          };
+          setCurrentExpense(updatedWorkflowExpense);
+        } else {
+          // If store couldn't fetch/find, use basic data (though store's fetch should handle errors)
+          console.warn("Could not fetch complete expense details via store, using basic data.");
+          setCurrentExpense(loadingExpense); 
+        }
       } catch (fetchError) {
-        // If API fetch fails, we'll just use the basic data we already have
-        console.warn("Could not fetch complete expense details:", fetchError);
-        // No need to close the modal or show error as we can still edit with basic info
+        console.warn("Error fetching complete expense details via store:", fetchError);
+        setCurrentExpense(loadingExpense); // Fallback to basic data
+        // The store's error state (errorExpenses) should reflect this failure.
       }
     } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to prepare expense for editing"
-      );
+       console.error("Failed to prepare expense for editing (local component):", error);
+       // setError(error instanceof Error ? error.message : "Failed to prepare expense for editing");
       setIsEditModalOpen(false);
     }
   };
@@ -120,72 +152,68 @@ export default function ExpenseList() {
     }
   };
 
-  // Function to process an uploaded receipt image using the expense workflow
-  const handleProcessExpense = async (imageUrl: string) => {
+  // New handler for file upload and then processing
+  const handleFileUploadAndProcess = async (file: File) => {
+    setIsProcessingReceipt(true);
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadResponse = await fetch("/api/expenses/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({ message: 'File upload failed with status: ' + uploadResponse.status }));
+        throw new Error(errorData.message || 'File upload failed');
+      }
+
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResult.url) {
+        throw new Error('File upload did not return a URL.');
+      }
+
+      const imageUrl = uploadResult.url;
       const processedExpense = await processExpenseImage(imageUrl);
 
-      // Show the expense in edit mode
-      setCurrentExpense(processedExpense);
-      setIsUploadModalOpen(false);
-      setIsEditModalOpen(true);
-
-      // Refresh the expenses list
-      const refreshedData = await getExpenses();
-      setExpenses(refreshedData.expenses);
+      if (processedExpense) {
+        setCurrentExpense(processedExpense);
+        setIsUploadModalOpen(false);
+        setIsEditModalOpen(true);
+      } else {
+        // Handle case where processing might return null or undefined, e.g. show an error
+        console.error("Expense processing failed after upload.");
+        // Optionally set an error message for the user
+      }
     } catch (error) {
-      console.error("Error processing expense:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to process expense"
-      );
+      console.error("Error in file upload and process workflow:", error);
+      // Optionally, set a user-facing error message in the UI
+      // For example, by using a new state variable like setUploadError((error as Error).message)
     } finally {
       setIsProcessingReceipt(false);
     }
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [expensesData, categoriesData] = await Promise.all([
-          getExpenses(),
-          getCategories()
-        ]);
-        
-        // Create a map of category IDs to category objects
-        const categoryMap = categoriesData.categories.reduce((acc, category) => {
-          acc[category.id] = category;
-          return acc;
-        }, {} as Record<string, Category>);
-        
-        setExpenses(expensesData.expenses);
-        setCategories(categoryMap);
-        setError(null);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load data"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchExpenses();
+    fetchCategories();
+  }, [fetchExpenses, fetchCategories]);
 
-    fetchData();
-  }, []);
-
-  if (loading) {
+  if (overallLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900">
-            <Skeleton className="h-8 w-[150px]" />
+            Expenses
           </h1>
           <div>
             <Skeleton className="h-10 w-[120px]" />
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table Skeleton */}
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -193,59 +221,23 @@ export default function ExpenseList() {
                 <table className="min-w-full divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th
-                        scope="col"
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                      >
-                        <Skeleton className="h-5 w-[60px]" />
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        <Skeleton className="h-5 w-[100px]" />
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        <Skeleton className="h-5 w-[80px]" />
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        <Skeleton className="h-5 w-[80px]" />
-                      </th>
-                      <th
-                        scope="col"
-                        className="relative py-3.5 pl-3 pr-4 sm:pr-6"
-                      >
-                        <span className="sr-only">Actions</span>
-                      </th>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Merchant</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
+                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          <Skeleton className="h-5 w-[80px]" />
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <Skeleton className="h-5 w-[200px]" />
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <Skeleton className="h-5 w-[100px]" />
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <Skeleton className="h-5 w-[80px]" />
-                        </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <div className="flex justify-end gap-2">
-                            <Skeleton className="h-8 w-8" />
-                            <Skeleton className="h-8 w-8" />
-                          </div>
-                        </td>
+                    {[...Array(5)].map((_, index) => (
+                      <tr key={`skeleton-${index}`}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6"><Skeleton className="h-4 w-[80px]" /></td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[120px]" /></td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[150px]" /></td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[100px]" /></td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm"><Skeleton className="h-4 w-[60px]" /></td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"><Skeleton className="h-4 w-[50px]" /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -258,29 +250,39 @@ export default function ExpenseList() {
     );
   }
 
-  if (error) {
+  if (overallError) {
     return (
-      <div className="rounded-lg bg-red-50 p-4">
-        <h3 className="text-sm font-medium text-red-800">
-          Error loading expenses
-        </h3>
-        <div className="mt-2 text-sm text-red-700">{error}</div>
+      <div className="text-center py-10 px-4 sm:px-6 lg:px-8">
+        <p className="text-red-500">Error loading data: {overallError?.message || 'An unknown error occurred'}</p>
+        <button 
+          onClick={() => { fetchExpenses(); fetchCategories(); }} 
+          className="mt-4 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Expenses</h1>
-        <button
-          type="button"
-          onClick={() => setIsUploadModalOpen(true)}
-          className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-        >
-          <PlusIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-          Add Expense
-        </button>
+    <div className="px-4 sm:px-6 lg:px-8 py-8">
+      <div className="sm:flex sm:items-center">
+        <div className="sm:flex-auto">
+          <h1 className="text-2xl font-semibold leading-6 text-gray-900">Expenses</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            A list of all your expenses including their date, merchant, category, and amount.
+          </p>
+        </div>
+        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <button
+            type="button"
+            onClick={() => setIsUploadModalOpen(true)}
+            className="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          >
+            <PlusIcon className="h-5 w-5 -ml-0.5 mr-1.5 inline" />
+            Add Expense
+          </button>
+        </div>
       </div>
 
       <div className="mt-8 flow-root">
@@ -290,78 +292,44 @@ export default function ExpenseList() {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th
-                      scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                    >
-                      Date
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Description
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Category
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Amount
-                    </th>
-                    <th
-                      scope="col"
-                      className="relative py-3.5 pl-3 pr-4 sm:pr-6"
-                    >
-                      <span className="sr-only">Actions</span>
-                    </th>
+                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Merchant</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
+                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {expenses.map((expense) => (
-                    <tr key={expense.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        {formatDate(expense.date)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {expense.description}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {categories[expense.categoryId]?.name || 'Uncategorized'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        }).format(expense.amount)}
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <div className="flex gap-4 justify-end">
-                          <button
-                            onClick={() => handleEditExpense(expense)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            Edit
+                  {expenses.length > 0 ? (
+                    expenses.map((exp) => (
+                      <tr key={exp.id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          {formatDate(exp.date)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{exp.merchant}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 truncate max-w-xs">{exp.description}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {categoriesMap[exp.categoryId]?.name || exp.categoryId}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: exp.currency || 'USD' }).format(exp.amount)}
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <button onClick={() => handleEditExpense(exp)} className="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
+                          <button onClick={() => setExpenseToDelete(exp)} className="text-red-600 hover:text-red-900">
+                            <TrashIcon className="h-5 w-5 inline" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setExpenseToDelete(expense);
-                            }}
-                            className="text-red-600 hover:text-red-800 flex items-center"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center py-10 text-gray-500">
+                        No expenses found. Click &quot;Add Expense&quot; to get started.
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -369,120 +337,68 @@ export default function ExpenseList() {
         </div>
       </div>
 
-      <Modal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        title="Upload Expense Receipt"
-      >
+      <Modal isOpen={isUploadModalOpen} onClose={() => {if (!isProcessingReceipt) setIsUploadModalOpen(false);}} title="Upload Expense Receipt">
         {isProcessingReceipt ? (
           <div className="flex flex-col items-center justify-center p-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             <p className="mt-4 text-sm text-gray-600">Processing receipt...</p>
           </div>
         ) : (
-          <ExpenseUpload
-            onUpload={async (file) => {
-              try {
-                // First upload the file
-                const formData = new FormData();
-                formData.append("file", file);
-
-                const response = await fetch("/api/expenses/upload", {
-                  method: "POST",
-                  body: formData,
-                });
-
-                if (!response.ok) {
-                  throw new Error("Failed to upload file");
-                }
-
-                const data = await response.json();
-
-                // Then process the uploaded file with the workflow
-                if (data.url) {
-                  setIsProcessingReceipt(true);
-                  await handleProcessExpense(data.url);
-                }
-              } catch (error) {
-                console.error("Error uploading file:", error);
-                setError(
-                  error instanceof Error
-                    ? error.message
-                    : "Failed to upload file"
-                );
-                setIsUploadModalOpen(false);
-              }
-            }}
+          <ExpenseUpload 
+            onUpload={handleFileUploadAndProcess} 
           />
         )}
       </Modal>
 
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title="Edit Expense"
+      <Modal 
+        isOpen={isEditModalOpen} 
+        onClose={() => { setIsEditModalOpen(false); setCurrentExpense(null); }} 
+        title={currentExpense?.id ? "Edit Expense" : "Add New Expense"}
       >
-        {currentExpense && (
-          <ExpenseProcessor
-            expense={currentExpense}
-            onSave={async (updatedExpense) => {
-              try {
-                // Save the updated expense using our utility function
-                await updateWorkflowExpense(updatedExpense.id, updatedExpense);
-
-                // Refresh expenses and close the modal
-                const updatedData = await getExpenses();
-                setExpenses(updatedData.expenses);
-                setIsEditModalOpen(false);
-                setCurrentExpense(null);
-              } catch (error) {
-                console.error("Error saving expense:", error);
-                throw error;
-              }
-            }}
-            onCancel={() => {
-              setIsEditModalOpen(false);
-              setCurrentExpense(null);
+        {currentExpense ? (
+          <ExpenseProcessor 
+            expense={currentExpense} 
+            categories={categoriesList} 
+            onSave={(_savedExpense) => { 
+              setIsEditModalOpen(false); 
+              setCurrentExpense(null); 
+            }} 
+            onClose={() => { 
+              setIsEditModalOpen(false); 
+              setCurrentExpense(null); 
             }}
           />
-        )}
+        ) : null}
       </Modal>
 
-      <Modal
-        isOpen={expenseToDelete !== null}
-        onClose={() => setExpenseToDelete(null)}
-        title="Confirm Delete"
-      >
-        <div className="p-6">
-          <p className="text-sm text-gray-500 mb-4">
-            Are you sure you want to delete this expense?
-            {expenseToDelete && (
-              <span className="block mt-2 font-medium">
-                {expenseToDelete.description} -{" "}
-                {new Intl.NumberFormat("en-US", {
-                  style: "currency",
-                  currency: "USD",
-                }).format(expenseToDelete.amount)}
-              </span>
-            )}
-          </p>
-          <div className="mt-4 flex justify-end gap-3">
-            <button
-              type="button"
-              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-              onClick={() => setExpenseToDelete(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
-              onClick={handleDeleteExpense}
-            >
-              Delete
-            </button>
+      <Modal isOpen={!!expenseToDelete} onClose={() => setExpenseToDelete(null)} title="Confirm Delete Expense">
+        {expenseToDelete && (
+          <div>
+            <p className="text-sm text-gray-500">
+              Are you sure you want to delete the expense for &quot;{expenseToDelete.merchant}&quot; on {formatDate(expenseToDelete.date)}?
+              This action cannot be undone.
+            </p>
+            <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row-reverse gap-3">
+              <button
+                type="button"
+                className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto"
+                onClick={async () => {
+                  await handleDeleteExpense();
+                  // setExpenseToDelete(null); // handleDeleteExpense already sets this
+                }}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                className="inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
+                onClick={() => setExpenseToDelete(null)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </Modal>
     </div>
   );

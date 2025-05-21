@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useExpenseStore } from "@/store/expenseStore"; // Import Zustand store
+import type { Category, WorkflowExpense } from "@/types";
 import {
   Card,
   CardContent,
@@ -29,38 +30,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import type { Category, Expense } from "@/types"; // ExpenseItem is implicitly typed via Expense.items
-
 interface ExpenseProcessorProps {
-  expense: Expense; // This now refers to the imported Expense type
-  onSave: (expense: Expense) => Promise<void>; // This now refers to the imported Expense type
-  onCancel: () => void;
+  expense: WorkflowExpense;
+  categories: Category[]; // Receive categories as a prop
+  onSave: (savedExpense: WorkflowExpense) => void; // Callback after successful save
+  onClose: () => void; // Renamed from onCancel
 }
 
 export default function ExpenseProcessor({
   expense,
+  categories, // Use categories from props
   onSave,
-  onCancel,
+  onClose, // Use onClose
 }: ExpenseProcessorProps) {
-  const [formData, setFormData] = useState<Expense>(expense);
+  const [formData, setFormData] = useState<WorkflowExpense>(expense);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        const data = await response.json();
-        setCategories(data.categories);
-      } catch (err) {
-        setError(`Failed to load categories: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      }
-    };
-
-    fetchCategories();
-  }, []);
+  const { addExpense, updateExpense } = useExpenseStore(); // Zustand actions
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -73,7 +59,7 @@ export default function ExpenseProcessor({
         // items.field.index
         const [parent, child, indexStr] = name.split(".");
         if (parent === "items" && indexStr) {
-          const items = JSON.parse(JSON.stringify(prev.items || [])); // Deep copy for safety
+          const items = JSON.parse(JSON.stringify(prev.items || []));
           const idx = parseInt(indexStr, 10);
 
           // Ensure the item exists or create a placeholder if adding new row functionality
@@ -141,8 +127,18 @@ export default function ExpenseProcessor({
     setError(null);
 
     try {
-      await onSave(formData);
-      router.refresh();
+      if (formData.id) {
+        await updateExpense(formData.id, formData);
+      } else {
+        // For new expenses, the store's addExpense should handle ID generation or API should return it
+        // For now, we assume addExpense handles it or returns the full expense with ID
+        const newExpense = await addExpense(formData);
+        // If addExpense modifies formData or returns a new object with ID, update formData for onSave
+        // This depends on addExpense's implementation. Assuming it updates or returns the complete object.
+        onSave(newExpense || formData); // Pass the saved/updated expense data back
+        return; // Exit early if it's a new expense and onSave is called
+      }
+      onSave(formData); // For updates, pass the formData used for the update
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save expense");
     } finally {
@@ -156,6 +152,10 @@ export default function ExpenseProcessor({
   const taxAmount = formData.tax || 0;
   const tipAmount = formData.tip || 0;
   const total = itemsTotal + taxAmount + tipAmount;
+  // Ensure formData.amount is updated if individual items are used and there's no direct amount input
+  // Or ensure that if amount is manually entered, it takes precedence or items are cleared.
+  // For now, assuming 'amount' field is separate or handled correctly by existing logic.
+  // If total is meant to be formData.amount, then: // useEffect(() => { setFormData(prev => ({...prev, amount: total})); }, [total]);
 
   return (
     <Card className="w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
@@ -362,12 +362,7 @@ export default function ExpenseProcessor({
         </form>
       </CardContent>
       <CardFooter className="flex justify-end space-x-3">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
         <Button
