@@ -18,6 +18,8 @@ type ExpenseResult = {
   date: string;
   merchant: string;
   currency: string;
+  tax: number;
+  tip: number;
 };
 
 type WorkflowStepOutput = {
@@ -32,6 +34,8 @@ type WorkflowStepOutput = {
     quantity?: number;
     unitPrice?: number;
   }>;
+  tax?: number;
+  tip?: number;
 };
 
 type WorkflowStepBase<T> = {
@@ -96,6 +100,8 @@ export const POST = async (request: NextRequest) => {
         date: expenseOutput.date,
         merchant: expenseOutput.merchant,
         currency: expenseOutput.currency || "USD",
+        tax: expenseOutput.tax ?? 0,
+        tip: expenseOutput.tip ?? 0
       };
 
       try {
@@ -153,8 +159,10 @@ export const POST = async (request: NextRequest) => {
             merchant,
             currency,
             receipt_url,
-            items
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            items,
+            tax,
+            tip
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           RETURNING *
         `,
           [
@@ -168,6 +176,8 @@ export const POST = async (request: NextRequest) => {
             expenseData.currency,
             imageUrl,
             expenseOutput.items ? JSON.stringify(expenseOutput.items) : null,
+            expenseOutput.tax ?? 0,
+            expenseOutput.tip ?? 0,
           ]
         );
 
@@ -186,6 +196,8 @@ export const POST = async (request: NextRequest) => {
             currency: newExpense.currency,
             receiptUrl: newExpense.receipt_url,
             items: newExpense.items,
+            tax: parseFloat(newExpense.tax) || 0,
+            tip: parseFloat(newExpense.tip) || 0,
           },
         });
       } catch (dbError) {
