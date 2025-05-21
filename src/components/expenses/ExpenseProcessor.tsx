@@ -184,11 +184,11 @@ export default function ExpenseProcessor({
   const total = itemsTotal + taxAmount + tipAmount;
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
       <CardHeader>
         <CardTitle>Edit Expense</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto">
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertTitle>Error</AlertTitle>
