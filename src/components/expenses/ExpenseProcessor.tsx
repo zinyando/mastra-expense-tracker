@@ -281,9 +281,7 @@ export default function ExpenseProcessor({
                   </TableHeader>
                   <TableBody>
                     {(formData.items || []).map((item, index) => (
-                      <TableRow key={index}>
-                        {" "}
-                        {/* Consider using a unique item.id if available */}
+                      <TableRow key={index}>{/* Consider using a unique item.id if available */}
                         <TableCell>
                           <Input
                             type="text"
