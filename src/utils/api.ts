@@ -3,7 +3,6 @@
 import type {
   PaymentMethod,
   Category,
-  LegacyExpense,
   Expense,
   DashboardStats,
 } from "@/types";
@@ -72,10 +71,10 @@ export async function deleteCategory(id: string): Promise<void> {
 }
 
 // Expenses API
-export async function getExpenses(): Promise<{ expenses: LegacyExpense[] }> {
+export async function getExpenses(): Promise<{ expenses: Expense[] }> {
   try {
     const response = await fetch("/api/expenses");
-    const data = await handleResponse<{ expenses: LegacyExpense[] }>(response);
+    const data = await handleResponse<{ expenses: Expense[] }>(response);
     return data;
   } catch (error) {
     console.error("Error fetching expenses:", error);
@@ -84,8 +83,8 @@ export async function getExpenses(): Promise<{ expenses: LegacyExpense[] }> {
 }
 
 export async function createExpense(
-  data: Omit<LegacyExpense, "id">
-): Promise<LegacyExpense> {
+  data: Omit<Expense, "id" | "createdAt" | "updatedAt" | "paymentMethodName">
+): Promise<Expense> {
   const response = await fetch("/api/expenses", {
     method: "POST",
     headers: {
@@ -96,15 +95,15 @@ export async function createExpense(
   return handleResponse(response);
 }
 
-export async function getExpenseById(id: string): Promise<LegacyExpense> {
+export async function getExpenseById(id: string): Promise<Expense> {
   const response = await fetch(`/api/expenses/${id}`);
   return handleResponse(response);
 }
 
 export async function updateExpense(
   id: string,
-  data: Partial<Omit<LegacyExpense, "id">>
-): Promise<LegacyExpense> {
+  data: Partial<Omit<Expense, "id" | "createdAt" | "updatedAt" | "paymentMethodName">>
+): Promise<Expense> {
   const response = await fetch(`/api/expenses/${id}`, {
     method: "PUT",
     headers: {

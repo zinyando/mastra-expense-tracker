@@ -2,7 +2,6 @@
  * Core data types for the Mastra Expense Tracker application.
  */
 
-// From src/utils/api.ts
 export interface PaymentMethod {
   id: string;
   name: string;
@@ -18,16 +17,6 @@ export interface Category {
   description: string;
 }
 
-// Renamed from 'Expense' in src/utils/api.ts to avoid naming conflict
-// and to denote its usage for simpler/legacy expense structures.
-export interface LegacyExpense {
-  id: string;
-  amount: number;
-  description: string;
-  categoryId: string;
-  date: string;
-}
-
 export interface ExpenseItem {
   description: string;
   quantity?: number;
@@ -35,15 +24,17 @@ export interface ExpenseItem {
   total: number;
 }
 
-// This was 'WorkflowExpense' in src/utils/api.ts and structurally
-// equivalent to 'Expense' in src/components/expenses/ExpenseProcessor.tsx
 export interface Expense {
   id: string;
   merchant: string;
   amount: number;
   currency: string;
   date: string;
+  description: string;
   categoryId: string;
+  categoryName?: string;
+  paymentMethodId?: string;
+  paymentMethodName?: string;
   items?: ExpenseItem[];
   tax?: number;
   tip?: number;
@@ -60,7 +51,7 @@ export interface DashboardStats {
     categoryName: string;
     total: number;
   }>;
-  recentExpenses: LegacyExpense[]; // Ensure this uses LegacyExpense
+  recentExpenses: Expense[];
   monthlyTrends: {
     currentMonth: number;
     previousMonth: number;

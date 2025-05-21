@@ -1,4 +1,4 @@
-import { Expense } from '@/utils/api';
+import { Expense } from "@/types";
 
 interface RecentExpensesProps {
   expenses: Expense[];
@@ -18,7 +18,7 @@ export default function RecentExpenses({ expenses }: RecentExpensesProps) {
                 <p className="text-sm font-medium text-gray-900">
                   {expense.description}
                 </p>
-                <p className="text-sm text-gray-500">{expense.categoryId}</p>
+                <p className="text-sm text-gray-500">{expense.categoryName || expense.categoryId}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">
