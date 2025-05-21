@@ -1,77 +1,12 @@
 // API Types
 
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  type: string;
-  lastFourDigits?: string;
-  isDefault: boolean;
-}
-export interface Category {
-  id: string;
-  name: string;
-  color: string;
-  description: string;
-}
-
-// Legacy Expense interface for backwards compatibility
-export interface Expense {
-  id: string;
-  amount: number;
-  description: string;
-  categoryId: string;
-  date: string;
-}
-
-// New ExpenseItem interface for line items in a receipt
-export interface ExpenseItem {
-  description: string;
-  quantity?: number;
-  unitPrice?: number;
-  total: number;
-}
-
-// New WorkflowExpense interface that matches our expense workflow output
-export interface WorkflowExpense {
-  id: string;
-  merchant: string;
-  amount: number;
-  currency: string;
-  date: string;
-  categoryId: string;
-  items?: ExpenseItem[];
-  tax?: number;
-  tip?: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DashboardStats {
-  totalExpenses: number;
-  activeCategories: number;
-  expensesByCategory: Array<{
-    categoryId: string;
-    categoryName: string;
-    total: number;
-  }>;
-  recentExpenses: Expense[];
-  monthlyTrends: {
-    currentMonth: number;
-    previousMonth: number;
-    trend: number;
-  };
-}
-
-export interface Stats {
-  totalExpenses: number;
-  expensesByCategory: {
-    categoryId: string;
-    total: number;
-  }[];
-}
-
-// API Error handling
+import type {
+  PaymentMethod,
+  Category,
+  LegacyExpense,
+  Expense,
+  DashboardStats,
+} from "@/types";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -137,10 +72,10 @@ export async function deleteCategory(id: string): Promise<void> {
 }
 
 // Expenses API
-export async function getExpenses(): Promise<{ expenses: Expense[] }> {
+export async function getExpenses(): Promise<{ expenses: LegacyExpense[] }> {
   try {
     const response = await fetch("/api/expenses");
-    const data = await handleResponse<{ expenses: Expense[] }>(response);
+    const data = await handleResponse<{ expenses: LegacyExpense[] }>(response);
     return data;
   } catch (error) {
     console.error("Error fetching expenses:", error);
@@ -149,8 +84,8 @@ export async function getExpenses(): Promise<{ expenses: Expense[] }> {
 }
 
 export async function createExpense(
-  data: Omit<Expense, "id">
-): Promise<Expense> {
+  data: Omit<LegacyExpense, "id">
+): Promise<LegacyExpense> {
   const response = await fetch("/api/expenses", {
     method: "POST",
     headers: {
@@ -161,15 +96,15 @@ export async function createExpense(
   return handleResponse(response);
 }
 
-export async function getExpenseById(id: string): Promise<Expense> {
+export async function getExpenseById(id: string): Promise<LegacyExpense> {
   const response = await fetch(`/api/expenses/${id}`);
   return handleResponse(response);
 }
 
 export async function updateExpense(
   id: string,
-  data: Partial<Omit<Expense, "id">>
-): Promise<Expense> {
+  data: Partial<Omit<LegacyExpense, "id">>
+): Promise<LegacyExpense> {
   const response = await fetch(`/api/expenses/${id}`, {
     method: "PUT",
     headers: {
@@ -181,9 +116,7 @@ export async function updateExpense(
 }
 
 // Workflow-based expense processing
-export async function processExpenseImage(
-  imageUrl: string
-): Promise<WorkflowExpense> {
+export async function processExpenseImage(imageUrl: string): Promise<Expense> {
   const response = await fetch("/api/expenses/create", {
     method: "POST",
     headers: {
@@ -193,14 +126,14 @@ export async function processExpenseImage(
   });
 
   const data = await handleResponse<{
-    expense?: WorkflowExpense;
+    expense?: Expense;
     status?: string;
-    suspendedData?: Partial<WorkflowExpense>;
+    suspendedData?: Partial<Expense>;
     fallback?: boolean;
     message: string;
   }>(response);
 
-  let expense: WorkflowExpense;
+  let expense: Expense;
 
   if (data.expense) {
     expense = data.expense;
@@ -214,7 +147,7 @@ export async function processExpenseImage(
       ...data.suspendedData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    } as WorkflowExpense;
+    } as Expense;
 
     return expense;
   }
@@ -224,8 +157,8 @@ export async function processExpenseImage(
 
 export async function updateWorkflowExpense(
   id: string,
-  expense: Partial<Omit<WorkflowExpense, "id">>
-): Promise<WorkflowExpense> {
+  expense: Partial<Omit<Expense, "id">>
+): Promise<Expense> {
   const response = await fetch(`/api/expenses/${id}`, {
     method: "PUT",
     headers: {

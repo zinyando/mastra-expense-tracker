@@ -29,37 +29,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-
-type Category = {
-  id: string;
-  name: string;
-};
-
-type ExpenseItem = {
-  description: string;
-  quantity?: number;
-  unitPrice?: number;
-  total: number;
-};
-
-type Expense = {
-  id: string;
-  merchant: string;
-  amount: number;
-  currency: string;
-  date: string;
-  categoryId: string;
-  items?: ExpenseItem[];
-  tax?: number;
-  tip?: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-};
+import type { Category, Expense } from "@/types"; // ExpenseItem is implicitly typed via Expense.items
 
 interface ExpenseProcessorProps {
-  expense: Expense;
-  onSave: (expense: Expense) => Promise<void>;
+  expense: Expense; // This now refers to the imported Expense type
+  onSave: (expense: Expense) => Promise<void>; // This now refers to the imported Expense type
   onCancel: () => void;
 }
 
