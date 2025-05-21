@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -30,6 +30,11 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 type ExpenseItem = {
   description: string;
   quantity?: number;
@@ -43,7 +48,7 @@ type Expense = {
   amount: number;
   currency: string;
   date: string;
-  category: string;
+  categoryId: string;
   items?: ExpenseItem[];
   tax?: number;
   tip?: number;
@@ -66,7 +71,22 @@ export default function ExpenseProcessor({
   const [formData, setFormData] = useState<Expense>(expense);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+        setCategories(data.categories);
+      } catch (err) {
+        setError(`Failed to load categories: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -138,7 +158,7 @@ export default function ExpenseProcessor({
   };
 
   const handleCategoryChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, category: value }));
+    setFormData((prev) => ({ ...prev, categoryId: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -230,7 +250,7 @@ export default function ExpenseProcessor({
               <Label htmlFor="category">Category</Label>
               <Select
                 name="category"
-                value={formData.category}
+                value={formData.categoryId}
                 onValueChange={handleCategoryChange}
                 required
               >
@@ -238,16 +258,11 @@ export default function ExpenseProcessor({
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Meals">Meals</SelectItem>
-                  <SelectItem value="Travel">Travel</SelectItem>
-                  <SelectItem value="Office Supplies">
-                    Office Supplies
-                  </SelectItem>
-                  <SelectItem value="Entertainment">Entertainment</SelectItem>
-                  <SelectItem value="Transportation">Transportation</SelectItem>
-                  <SelectItem value="Utilities">Utilities</SelectItem>
-                  <SelectItem value="Healthcare">Healthcare</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
