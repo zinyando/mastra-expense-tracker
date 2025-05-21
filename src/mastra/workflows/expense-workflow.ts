@@ -97,9 +97,6 @@ const categorizeExpense = createStep({
   execute: async ({ inputData }) => {
     const categories = await fetchCategoriesFromAPI();
 
-    console.log("Categories:", categories);
-    console.log("Input Data:", inputData);
-
     const { text } = await generateText({
       model: openai("gpt-4o"),
       messages: [

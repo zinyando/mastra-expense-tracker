@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Expense,
   WorkflowExpense,
@@ -179,19 +179,34 @@ export default function ExpenseList() {
                 <table className="min-w-full divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th
+                        scope="col"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                      >
                         <Skeleton className="h-5 w-[60px]" />
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
                         <Skeleton className="h-5 w-[100px]" />
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
                         <Skeleton className="h-5 w-[80px]" />
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
                         <Skeleton className="h-5 w-[80px]" />
                       </th>
-                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                      <th
+                        scope="col"
+                        className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                      >
                         <span className="sr-only">Actions</span>
                       </th>
                     </tr>
@@ -429,7 +444,8 @@ export default function ExpenseList() {
             Are you sure you want to delete this expense?
             {expenseToDelete && (
               <span className="block mt-2 font-medium">
-                {expenseToDelete.description} - {new Intl.NumberFormat("en-US", {
+                {expenseToDelete.description} -{" "}
+                {new Intl.NumberFormat("en-US", {
                   style: "currency",
                   currency: "USD",
                 }).format(expenseToDelete.amount)}

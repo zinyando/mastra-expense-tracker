@@ -152,8 +152,9 @@ export const POST = async (request: NextRequest) => {
             date,
             merchant,
             currency,
-            receipt_url
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            receipt_url,
+            items
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           RETURNING *
         `,
           [
@@ -166,6 +167,7 @@ export const POST = async (request: NextRequest) => {
             expenseData.merchant,
             expenseData.currency,
             imageUrl,
+            expenseOutput.items ? JSON.stringify(expenseOutput.items) : null,
           ]
         );
 
@@ -183,6 +185,7 @@ export const POST = async (request: NextRequest) => {
             merchant: newExpense.merchant,
             currency: newExpense.currency,
             receiptUrl: newExpense.receipt_url,
+            items: newExpense.items,
           },
         });
       } catch (dbError) {

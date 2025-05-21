@@ -19,6 +19,7 @@ export async function GET(
         e.date,
         e.merchant,
         e.currency,
+        e.items,
         c.name as category_name,
         pm.name as payment_method_name
       FROM expenses e
@@ -41,7 +42,8 @@ export async function GET(
       paymentMethodName: rows[0].payment_method_name,
       date: rows[0].date.toISOString().split('T')[0],
       merchant: rows[0].merchant,
-      currency: rows[0].currency
+      currency: rows[0].currency,
+      items: rows[0].items
     };
 
     return NextResponse.json(expense);
@@ -126,8 +128,9 @@ export async function PUT(
         payment_method_id = $4,
         date = $5,
         merchant = $6,
-        currency = $7
-      WHERE id = $8
+        currency = $7,
+        items = $8
+      WHERE id = $9
       RETURNING *
     `, [
       updates.amount,
@@ -137,6 +140,7 @@ export async function PUT(
       updates.date,
       updates.merchant,
       updates.currency || 'USD',
+      updates.items ? JSON.stringify(updates.items) : null,
       id
     ]);
 
@@ -150,7 +154,8 @@ export async function PUT(
       paymentMethodId: updatedExpense.payment_method_id,
       date: updatedExpense.date.toISOString().split('T')[0],
       merchant: updatedExpense.merchant,
-      currency: updatedExpense.currency
+      currency: updatedExpense.currency,
+      items: updatedExpense.items
     });
   } catch (error) {
     await client.query('ROLLBACK');
