@@ -1,259 +1,247 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PlusIcon, CreditCardIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, CreditCardIcon, TrashIcon, PencilIcon, StarIcon } from '@heroicons/react/24/outline'; // Added PencilIcon, StarIcon
 import { Skeleton } from '@/components/ui/skeleton';
-import { PaymentMethod, getPaymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '@/utils/api';
+import { usePaymentMethodStore } from '@/store/paymentMethodStore';
+import { PaymentMethod } from '@/types'; // Using central types
 import Modal from '@/components/ui/Modal';
 import PaymentMethodForm from './PaymentMethodForm';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 export default function PaymentMethodList() {
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    paymentMethods,
+    isLoading,
+    error: storeError, // Renamed to avoid conflict with potential local error states
+    fetchPaymentMethods,
+    addPaymentMethod,
+    updatePaymentMethod,
+    deletePaymentMethod,
+    setDefaultPaymentMethod,
+  } = usePaymentMethodStore();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
   const [methodToDelete, setMethodToDelete] = useState<PaymentMethod | null>(null);
-
-  const fetchPaymentMethods = async () => {
-    try {
-      const data = await getPaymentMethods();
-      setPaymentMethods(data.paymentMethods);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load payment methods');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [formError, setFormError] = useState<string | null>(null); // For non-form specific errors (e.g., delete)
 
   useEffect(() => {
     fetchPaymentMethods();
-  }, []);
+  }, [fetchPaymentMethods]); // Added fetchPaymentMethods to dependency array
 
   const handleAddPaymentMethod = () => {
     setEditingPaymentMethod(null);
+    setFormError(null); // Clear previous errors
     setIsModalOpen(true);
   };
 
   const handleEditPaymentMethod = (method: PaymentMethod) => {
     setEditingPaymentMethod(method);
+    setFormError(null); // Clear previous errors
     setIsModalOpen(true);
+  };
+
+  // New function to open delete confirmation, separating from actual deletion logic
+  const openDeleteConfirmation = (method: PaymentMethod) => {
+    setMethodToDelete(method);
+    setFormError(null); // Clear previous errors
   };
 
   const handleDeletePaymentMethod = async () => {
     if (!methodToDelete) return;
+    setFormError(null); // Clear error before attempting delete
     try {
-      await deletePaymentMethod(methodToDelete.id);
-      setMethodToDelete(null);
-      fetchPaymentMethods(); // Refresh the list
+      await deletePaymentMethod(methodToDelete.id); // Use store action
+      setMethodToDelete(null); // Close confirmation modal
+      // No manual refresh needed, store handles UI update
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete payment method');
+      console.error("Failed to delete payment method:", err);
+      setFormError(err instanceof Error ? err.message : 'Failed to delete payment method');
+    }
+  };
+  
+  const handleSetDefault = async (id: string) => {
+    setFormError(null);
+    try {
+      await setDefaultPaymentMethod(id);
+      // UI should update based on store changes reflecting the new default
+    } catch (err) {
+      console.error("Failed to set default payment method:", err);
+      setFormError(err instanceof Error ? err.message : 'Failed to set default payment method');
     }
   };
 
-  const handleSubmit = async (data: Omit<PaymentMethod, 'id'>) => {
+  const handleSubmit = async (data: Omit<PaymentMethod, 'id'>) => { // Assuming form provides Omit<PaymentMethod, 'id'>
+    setFormError(null);
     try {
       if (editingPaymentMethod) {
+        // updatePaymentMethod from store expects Partial<Omit<PaymentMethod, "id">>
+        // data from form is Omit<PaymentMethod, 'id'>, which is compatible.
         await updatePaymentMethod(editingPaymentMethod.id, data);
       } else {
-        await createPaymentMethod(data);
+        // addPaymentMethod from store expects Omit<PaymentMethod, "id">
+        await addPaymentMethod(data);
       }
       setIsModalOpen(false);
-      fetchPaymentMethods(); // Refresh the list
+      setEditingPaymentMethod(null);
+      // No manual refresh needed, store handles UI update
     } catch (err) {
-      throw err;
+      console.error('Failed to save payment method:', err);
+      // Re-throw error to be handled by PaymentMethodForm's internal error display
+      throw err; 
     }
   };
 
-  if (loading) {
+  if (isLoading && !paymentMethods.length) { 
     return (
       <div className="space-y-6">
-        {/* Header */}
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <Skeleton className="h-8 w-[180px]" />
-            <Skeleton className="h-4 w-[250px] mt-2" />
+            <Skeleton className="h-8 w-[220px]" />
+            <Skeleton className="h-4 w-[300px] mt-2" />
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <Skeleton className="h-10 w-[160px]" />
+            <Skeleton className="h-10 w-[180px]" />
           </div>
         </div>
-
-        {/* Payment Methods List */}
-        <div className="mt-8 flow-root">
-          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                        <div className="flex items-center gap-2">
-                          <Skeleton className="h-5 w-5" />
-                          <Skeleton className="h-5 w-[80px]" />
-                        </div>
-                      </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                        <Skeleton className="h-5 w-[100px]" />
-                      </th>
-                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <tr key={i}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                          <div className="flex items-center">
-                            <Skeleton className="h-10 w-10 rounded-lg" />
-                            <div className="ml-4">
-                              <Skeleton className="h-5 w-[150px]" />
-                              <Skeleton className="h-4 w-[100px] mt-1" />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <Skeleton className="h-5 w-[120px]" />
-                        </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <div className="flex justify-end gap-2">
-                            <Skeleton className="h-8 w-8" />
-                            <Skeleton className="h-8 w-8" />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg bg-red-50 p-4">
-        <h3 className="text-sm font-medium text-red-800">
-          Error loading payment methods
-        </h3>
-        <div className="mt-2 text-sm text-red-700">{error}</div>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead><Skeleton className="h-5 w-[100px]" /></TableHead>
+                  <TableHead><Skeleton className="h-5 w-[80px]" /></TableHead>
+                  <TableHead><Skeleton className="h-5 w-[100px]" /></TableHead>
+                  <TableHead className="text-right"><Skeleton className="h-5 w-[80px] float-right" /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-12 rounded-md" />
+                        <Skeleton className="h-5 w-[150px]" />
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-5 w-[70px]" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-[90px]" /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
+                        <Skeleton className="h-8 w-8" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-6">
+      {(storeError || formError) && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{storeError?.message || formError}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Payment Methods</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            A list of all payment methods available for expenses.
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Payment Methods</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+            Manage your payment methods for expense tracking.
           </p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <button
-            type="button"
-            onClick={handleAddPaymentMethod}
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
-          >
-            <PlusIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+          <Button onClick={handleAddPaymentMethod}>
+            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
             Add Payment Method
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                    >
-                      <div className="flex items-center gap-2">
-                        <CreditCardIcon className="h-5 w-5 text-gray-400" />
-                        <span>Name</span>
-                      </div>
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Type
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Last 4 Digits
-                    </th>
-                    <th
-                      scope="col"
-                      className="relative py-3.5 pl-3 pr-4 text-right text-sm font-medium sm:pr-6"
-                    >
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {paymentMethods.map((method) => (
-                    <tr key={method.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        <div className="flex items-center gap-2">
-                          {method.name}
-                          {method.isDefault && (
-                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                              Default
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {method.type}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {method.lastFourDigits ? `•••• ${method.lastFourDigits}` : '-'}
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <div className="flex gap-4 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleEditPaymentMethod(method)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setMethodToDelete(method);
-                            }}
-                            className="text-red-600 hover:text-red-800 flex items-center"
-                            disabled={method.isDefault}
-                            title={method.isDefault ? 'Cannot delete default payment method' : ''}
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Payment Methods</CardTitle>
+          <CardDescription>
+            View and manage all your registered payment methods.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading && paymentMethods.length > 0 && <p className="p-4 text-center text-sm text-gray-500">Updating list...</p>}
+          {!isLoading && paymentMethods.length === 0 && !storeError && (
+            <div className="p-6 text-center">
+              <CreditCardIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No payment methods</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding a new payment method.</p>
             </div>
-          </div>
-        </div>
-      </div>
+          )}
+          {paymentMethods.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Last 4 Digits</TableHead>
+                  <TableHead>Default</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentMethods.map((method) => (
+                  <TableRow key={method.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <CreditCardIcon className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+                        <span className="font-medium text-gray-900 dark:text-white">{method.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-700 dark:text-gray-300">{method.type}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-gray-300">{method.lastFourDigits || 'N/A'}</TableCell>
+                    <TableCell>
+                      {method.isDefault ? (
+                        <StarIcon className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                      ) : (
+                        <Button variant="ghost" size="sm" onClick={() => handleSetDefault(method.id)} className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                          Set Default
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditPaymentMethod(method)} title="Edit">
+                        <PencilIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openDeleteConfirmation(method)} title="Delete">
+                        <TrashIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Modal
         isOpen={isModalOpen}
@@ -261,7 +249,7 @@ export default function PaymentMethodList() {
         title={editingPaymentMethod ? 'Edit Payment Method' : 'Add Payment Method'}
       >
         <PaymentMethodForm
-          paymentMethod={editingPaymentMethod || undefined}
+          paymentMethod={editingPaymentMethod || undefined} 
           onSubmit={handleSubmit}
           onCancel={() => setIsModalOpen(false)}
         />

@@ -18,7 +18,7 @@ interface PaymentMethodState {
   setDefaultPaymentMethod: (id: string) => Promise<void>;
 }
 
-export const usePaymentMethodStore = create<PaymentMethodState>((set, get) => ({
+export const usePaymentMethodStore = create<PaymentMethodState>((set) => ({
   paymentMethods: [],
   isLoading: false,
   error: null,
@@ -128,8 +128,10 @@ export const usePaymentMethodStore = create<PaymentMethodState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       // Call updatePaymentMethod to set the isDefault flag
-      const updatedDefaultMethod = await api.updatePaymentMethod(id, { isDefault: true });
-      
+      const updatedDefaultMethod = await api.updatePaymentMethod(id, {
+        isDefault: true,
+      });
+
       // If the API call is successful and returns the updated method
       if (updatedDefaultMethod) {
         set((state) => ({
@@ -146,16 +148,18 @@ export const usePaymentMethodStore = create<PaymentMethodState>((set, get) => ({
         // For now, we'll assume the API returns the updated method and handles unsetting others.
         // If not, the store's updatePaymentMethod logic already handles updating other methods if 'isDefault' is true.
         // To be safe, refetch or manually ensure other defaults are false if API doesn't manage it.
-        console.warn('setDefaultPaymentMethod: updatedDefaultMethod was not returned, relying on API to unset other defaults.');
+        console.warn(
+          "setDefaultPaymentMethod: updatedDefaultMethod was not returned, relying on API to unset other defaults."
+        );
         // Re-fetch to ensure consistency if API behavior is uncertain
-        // get().fetchPaymentMethods(); 
+        // get().fetchPaymentMethods();
         // Or, more directly, assume the specific one is now default:
         set((state) => ({
-            paymentMethods: state.paymentMethods.map((pm) => ({
-                ...pm,
-                isDefault: pm.id === id,
-            })),
-            isLoading: false,
+          paymentMethods: state.paymentMethods.map((pm) => ({
+            ...pm,
+            isDefault: pm.id === id,
+          })),
+          isLoading: false,
         }));
       }
     } catch (error) {

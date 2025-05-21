@@ -2,34 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Category, createCategory, deleteCategory, getCategories, updateCategory } from '@/utils/api';
+import { useCategoryStore } from '@/store/categoryStore'; // Import Zustand store
+import type { Category } from '@/types'; // Assuming Category type is in @/types
 import { Skeleton } from '@/components/ui/skeleton';
 import Modal from '@/components/ui/Modal';
 import CategoryForm from './CategoryForm';
 
 export default function CategoryList() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    categories,
+    isLoading,
+    error: storeError,
+    fetchCategories,
+    addCategory,
+    updateCategory,
+    deleteCategory, // Corrected action name
+  } = useCategoryStore();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
-
-  const fetchCategories = async () => {
-    try {
-      const data = await getCategories();
-      setCategories(data.categories);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Local error state for form submission errors, distinct from store's loading error
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   const handleAddCategory = () => {
     setEditingCategory(null);
@@ -43,30 +41,41 @@ export default function CategoryList() {
 
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
+    setFormError(null); // Clear previous form errors
     try {
-      await deleteCategory(categoryToDelete.id);
-      setCategoryToDelete(null);
-      fetchCategories(); // Refresh the list
+      await deleteCategory(categoryToDelete.id); // Use correct action name
+      setCategoryToDelete(null); // Close confirmation modal
+      // No manual refresh needed, store handles UI update
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete category');
+      console.error("Failed to delete category:", err);
+      // Display error. This could be a specific message or rely on a global error display from the store if appropriate.
+      setFormError(err instanceof Error ? err.message : 'Failed to delete category'); 
     }
   };
 
   const handleSubmit = async (data: Omit<Category, 'id'>) => {
+    setFormError(null); // Clear previous form errors
     try {
       if (editingCategory) {
+        // updateCategory from store expects Partial<Omit<Category, "id">>
+        // data from CategoryForm is Omit<Category, 'id'>, which is compatible.
         await updateCategory(editingCategory.id, data);
       } else {
-        await createCategory(data);
+        // addCategory from store expects Omit<Category, "id">
+        await addCategory(data);
       }
       setIsModalOpen(false);
-      fetchCategories(); // Refresh the list
+      setEditingCategory(null);
+      // No manual refresh needed, store handles UI update
     } catch (err) {
-      throw err;
+      console.error('Failed to save category:', err);
+      // This error will be caught and displayed by CategoryForm's internal error handling
+      // Re-throwing allows CategoryForm to catch it.
+      throw err; 
     }
   };
 
-  if (loading) {
+  if (isLoading && categories.length === 0) { // Show skeleton only on initial load
     return (
       <div>
         {/* Header */}
@@ -133,19 +142,27 @@ export default function CategoryList() {
     );
   }
 
-  if (error) {
+  if (storeError) {
     return (
       <div className="rounded-lg bg-red-50 p-4">
         <h3 className="text-sm font-medium text-red-800">
           Error loading categories
         </h3>
-        <div className="mt-2 text-sm text-red-700">{error}</div>
+        <div className="mt-2 text-sm text-red-700">{storeError instanceof Error ? storeError.message : storeError}</div>
       </div>
     );
   }
 
   return (
     <div>
+      {formError && (
+        <div className="mb-4 rounded-lg bg-red-50 p-4">
+          <h3 className="text-sm font-medium text-red-800">Action Error</h3>
+          <div className="mt-2 text-sm text-red-700">
+            {formError}
+          </div>
+        </div>
+      )}
       <div className="space-y-6">
         <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
@@ -245,8 +262,7 @@ export default function CategoryList() {
         title={editingCategory ? 'Edit Category' : 'Add Category'}
       >
         <CategoryForm
-          category={editingCategory || undefined}
-          onSubmit={handleSubmit}
+          category={editingCategory || undefined} onSubmit={handleSubmit}
           onCancel={() => setIsModalOpen(false)}
         />
       </Modal>
@@ -269,7 +285,7 @@ export default function CategoryList() {
             <button
               type="button"
               className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-              onClick={() => setCategoryToDelete(null)}
+              onClick={() => { setFormError(null); setCategoryToDelete(null); }}
             >
               Cancel
             </button>
