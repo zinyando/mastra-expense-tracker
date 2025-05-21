@@ -6,11 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Expense,
   WorkflowExpense,
+  Category,
   getExpenses,
   getExpenseById,
   processExpenseImage,
   updateWorkflowExpense,
   deleteExpense,
+  getCategories,
 } from "@/utils/api";
 import Modal from "@/components/ui/Modal";
 import ExpenseUpload from "./ExpenseUpload";
@@ -18,6 +20,7 @@ import ExpenseProcessor from "./ExpenseProcessor";
 
 export default function ExpenseList() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Record<string, Category>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -54,7 +57,7 @@ export default function ExpenseList() {
         amount: expense.amount,
         currency: "USD",
         date: expense.date,
-        category: expense.categoryId,
+        categoryId: expense.categoryId,
         items: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -71,7 +74,7 @@ export default function ExpenseList() {
         const updatedWorkflowExpense: WorkflowExpense = {
           ...loadingExpense,
           merchant: completeExpense.description || loadingExpense.merchant,
-          category: completeExpense.categoryId || loadingExpense.category,
+          categoryId: completeExpense.categoryId || loadingExpense.categoryId,
           // Add any additional fields from the API response
         };
 
@@ -141,21 +144,32 @@ export default function ExpenseList() {
   };
 
   useEffect(() => {
-    const fetchExpenses = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getExpenses();
-        setExpenses(data.expenses);
+        const [expensesData, categoriesData] = await Promise.all([
+          getExpenses(),
+          getCategories()
+        ]);
+        
+        // Create a map of category IDs to category objects
+        const categoryMap = categoriesData.categories.reduce((acc, category) => {
+          acc[category.id] = category;
+          return acc;
+        }, {} as Record<string, Category>);
+        
+        setExpenses(expensesData.expenses);
+        setCategories(categoryMap);
         setError(null);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to load expenses"
+          err instanceof Error ? err.message : "Failed to load data"
         );
       } finally {
         setLoading(false);
       }
     };
 
-    fetchExpenses();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -318,7 +332,7 @@ export default function ExpenseList() {
                         {expense.description}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {expense.categoryId}
+                        {categories[expense.categoryId]?.name || 'Uncategorized'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {new Intl.NumberFormat("en-US", {
