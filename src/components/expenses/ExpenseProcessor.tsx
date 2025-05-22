@@ -33,17 +33,21 @@ import { Textarea } from "@/components/ui/textarea";
 interface ExpenseProcessorProps {
   expense: WorkflowExpense;
   categories: Category[]; // Receive categories as a prop
-  onSave: (savedExpense: WorkflowExpense) => void; // Callback after successful save
-  onClose: () => void; // Renamed from onCancel
+  suspendedData?: WorkflowExpense; // Data from workflow's expenseSchema when suspended
+  workflowRunId?: string; // ID of the workflow run if in review mode
+  onResumed: (finalExpense: WorkflowExpense) => void; // Callback after workflow resume
+  onClose: () => void; // Close the modal
 }
 
 export default function ExpenseProcessor({
   expense,
-  categories, // Use categories from props
-  onSave,
-  onClose, // Use onClose
+  categories,
+  suspendedData,
+  workflowRunId,
+  onResumed,
+  onClose,
 }: ExpenseProcessorProps) {
-  const [formData, setFormData] = useState<WorkflowExpense>(expense);
+  const [formData, setFormData] = useState<WorkflowExpense>(suspendedData || expense);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addExpense, updateExpense } = useExpenseStore(); // Zustand actions
@@ -127,20 +131,39 @@ export default function ExpenseProcessor({
     setError(null);
 
     try {
-      if (formData.id) {
-        await updateExpense(formData.id, formData);
+      if (workflowRunId) {
+        // Resume workflow with reviewed data
+        const response = await fetch('/api/expenses/resume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workflowRunId,
+            resumeData: {
+              ...formData,
+              category: categories.find(c => c.id === formData.categoryId)?.name || '',
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to resume workflow');
+        }
+
+        const result = await response.json();
+        onResumed(result.expense);
       } else {
-        // For new expenses, the store's addExpense should handle ID generation or API should return it
-        // For now, we assume addExpense handles it or returns the full expense with ID
-        const newExpense = await addExpense(formData);
-        // If addExpense modifies formData or returns a new object with ID, update formData for onSave
-        // This depends on addExpense's implementation. Assuming it updates or returns the complete object.
-        onSave(newExpense || formData); // Pass the saved/updated expense data back
-        return; // Exit early if it's a new expense and onSave is called
+        // Normal expense save flow
+        if (formData.id) {
+          await updateExpense(formData.id, formData);
+        } else {
+          const newExpense = await addExpense(formData);
+          onResumed(newExpense || formData);
+          return;
+        }
+        onResumed(formData);
       }
-      onSave(formData); // For updates, pass the formData used for the update
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save expense");
+      setError(err instanceof Error ? err.message : 'Failed to save expense');
     } finally {
       setIsSubmitting(false);
     }
@@ -160,7 +183,7 @@ export default function ExpenseProcessor({
   return (
     <Card className="w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
       <CardHeader>
-        <CardTitle>Edit Expense</CardTitle>
+        <CardTitle>{workflowRunId ? 'Review Expense' : 'Edit Expense'}</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto">
         {error && (

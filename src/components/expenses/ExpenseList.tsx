@@ -33,6 +33,7 @@ export default function ExpenseList() {
   const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(
     null
   );
+  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false); // This might be managed inside ExpenseUpload or Processor
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
@@ -176,11 +177,9 @@ export default function ExpenseList() {
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse
-          .json()
-          .catch(() => ({
-            message: "File upload failed with status: " + uploadResponse.status,
-          }));
+        const errorData = await uploadResponse.json().catch(() => ({
+          message: "File upload failed with status: " + uploadResponse.status,
+        }));
         throw new Error(errorData.message || "File upload failed");
       }
 
@@ -190,10 +189,18 @@ export default function ExpenseList() {
       }
 
       const imageUrl = uploadResult.url;
-      const processedExpense = await processExpenseImage(imageUrl);
+      const result = await processExpenseImage(imageUrl);
 
-      if (processedExpense) {
-        setCurrentExpense(processedExpense);
+      if ("status" in result && result.status === "suspended") {
+        const suspendedWorkflow = result;
+        setCurrentExpense(
+          suspendedWorkflow.suspendedData.currentData as WorkflowExpense
+        );
+        setWorkflowRunId(suspendedWorkflow.workflowId);
+        setIsUploadModalOpen(false);
+        setIsEditModalOpen(true);
+      } else if ("merchant" in result) {
+        setCurrentExpense(result as WorkflowExpense);
         setIsUploadModalOpen(false);
         setIsEditModalOpen(true);
       } else {
@@ -474,19 +481,29 @@ export default function ExpenseList() {
           setIsEditModalOpen(false);
           setCurrentExpense(null);
         }}
-        title={currentExpense?.id ? "Edit Expense" : "Add New Expense"}
+        title={
+          workflowRunId
+            ? "Review Expense"
+            : currentExpense?.id
+              ? "Edit Expense"
+              : "Add New Expense"
+        }
       >
         {currentExpense ? (
           <ExpenseProcessor
             expense={currentExpense}
             categories={categoriesList}
-            onSave={() => {
+            suspendedData={workflowRunId ? currentExpense : undefined}
+            workflowRunId={workflowRunId || undefined}
+            onResumed={() => {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
+              setWorkflowRunId(null);
             }}
             onClose={() => {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
+              setWorkflowRunId(null);
             }}
           />
         ) : null}

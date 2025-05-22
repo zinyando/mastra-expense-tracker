@@ -149,7 +149,6 @@ const reviewExpense = createStep({
   outputSchema: expenseSchema,
   execute: async ({ inputData, resumeData, suspend }) => {
     if (!resumeData) {
-      console.log("Suspending review step");
       await suspend({
         currentData: inputData,
       });
@@ -172,7 +171,6 @@ const saveExpense = createStep({
     updatedAt: z.string().datetime(),
   }),
   execute: async ({ inputData }) => {
-    console.log("Saving expense");
     const addExpense = useExpenseStore.getState().addExpense;
 
     const expenseData = {

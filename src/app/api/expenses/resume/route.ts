@@ -3,28 +3,8 @@ import expenseWorkflow from "@/mastra/workflows/expense-workflow";
 import { pool } from "@/lib/db";
 import crypto from "crypto";
 
-// This local ExpenseResult type is an intermediate representation.
-// The final response aims to match the global Expense type.
-type ExpenseResult = {
-  id: string;
-  amount: number;
-  description: string;
-  category?: {
-    id: string;
-    name: string;
-  };
-  paymentMethod?: {
-    id: string;
-    name: string;
-  };
-  date: string;
-  merchant: string;
-  currency: string;
-  tax: number;
-  tip: number;
-  notes?: string; // Added notes
-};
-
+// This is similar to the type in create/route.ts
+// In a real application, these types would be shared
 type WorkflowStepOutput = {
   date: string;
   merchant: string;
@@ -39,7 +19,7 @@ type WorkflowStepOutput = {
   }>;
   tax?: number;
   tip?: number;
-  notes?: string; // Added notes to workflow output type if it can provide it
+  notes?: string;
 };
 
 type WorkflowStepBase<T> = {
@@ -53,21 +33,12 @@ type ExtractExpenseStep = WorkflowStepBase<WorkflowStepOutput>;
 type WorkflowResult = {
   status: "success" | "suspended" | "failed";
   steps: {
-    input: {
-      imageUrl: string;
-    };
     "extract-expense-data": ExtractExpenseStep;
     "categorize-expense": ExtractExpenseStep;
-    "review-expense": {
-      status: "suspended" | "completed";
-      output?: WorkflowStepOutput;
-      payload?: {
-        currentData: WorkflowStepOutput;
-      };
-    };
     "save-expense": ExtractExpenseStep;
   };
   error?: string;
+  suspendedData?: unknown;
   result?: WorkflowStepOutput;
   suspended?: string[][];
 };
@@ -77,53 +48,48 @@ export const dynamic = "force-dynamic";
 export const POST = async (request: NextRequest) => {
   const client = await pool.connect();
   try {
-    const { imageUrl } = await request.json();
+    const { workflowId, stepId, resumeData } = await request.json();
 
-    if (!imageUrl) {
+    if (!workflowId || !stepId || !resumeData) {
       return NextResponse.json(
-        { error: "Image URL is required" },
+        { error: "workflowId, stepId, and resumeData are required" },
         { status: 400 }
       );
     }
 
-    // Start the expense workflow
-    const run = expenseWorkflow.createRun();
-    const rawResult = await run.start({ inputData: { imageUrl } });
+    // Resume the workflow
+    const run = expenseWorkflow.createRun({ runId: workflowId });
+    const rawResult = await run.resume({
+      step: stepId,
+      resumeData,
+    });
+    
     const workflowResult = rawResult as unknown as WorkflowResult;
 
-    // Handle workflow based on status
+    // If still suspended, return the suspended state
     if (workflowResult.status === "suspended") {
-      // Generate a unique ID for this workflow run
-      const workflowId = crypto.randomUUID();
-
-      // Get the processed expense data from the categorize step
-      const processedData = workflowResult.steps["categorize-expense"].output;
-
-      if (!processedData) {
-        throw new Error("No processed data available from categorize step");
-      }
-
-      // Return suspended state information
       return NextResponse.json({
         status: "suspended",
-        suspendedData: {
-          currentData: processedData, // Use the processed data from categorize step
-        },
+        suspendedData: workflowResult.suspendedData,
         suspendedSteps: workflowResult.suspended,
-        message: "Workflow suspended, waiting for user input",
-        fallback: false,
-        workflowId, // Include the workflow ID for resuming later
+        message: "Workflow still suspended, waiting for more input",
+        fallback: false
       });
     }
 
+    // If workflow failed, return the error
+    if (workflowResult.status === "failed") {
+      return NextResponse.json(
+        { error: workflowResult.error || "Failed to process expense" },
+        { status: 500 }
+      );
+    }
+
     // For successful workflows, use the final result
-    const expenseOutput =
-      workflowResult.status === "success"
-        ? workflowResult.result
-        : workflowResult.steps["extract-expense-data"].output;
+    const expenseOutput = workflowResult.result;
 
     if (expenseOutput) {
-      const expenseData: ExpenseResult = {
+      const expenseData = {
         id: crypto.randomUUID(),
         amount: expenseOutput.amount,
         description: expenseOutput.items?.[0]?.description || "Unknown",
@@ -138,7 +104,7 @@ export const POST = async (request: NextRequest) => {
         currency: expenseOutput.currency || "USD",
         tax: expenseOutput.tax ?? 0,
         tip: expenseOutput.tip ?? 0,
-        notes: expenseOutput.notes, // Assuming workflow might provide notes
+        notes: expenseOutput.notes,
       };
 
       try {
@@ -162,22 +128,6 @@ export const POST = async (request: NextRequest) => {
               [expenseData.category.id, expenseData.category.name]
             );
             categoryId = newCategory.id;
-          }
-        }
-
-        // Verify payment method exists if provided
-        if (expenseData.paymentMethod?.id) {
-          const { rows: methodRows } = await client.query(
-            "SELECT id FROM expense_payment_methods WHERE id = $1",
-            [expenseData.paymentMethod.id]
-          );
-
-          if (methodRows.length === 0) {
-            await client.query("ROLLBACK");
-            return NextResponse.json(
-              { error: "Payment method not found" },
-              { status: 404 }
-            );
           }
         }
 
@@ -208,11 +158,11 @@ export const POST = async (request: NextRequest) => {
             expenseData.amount,
             expenseData.description,
             categoryId,
-            expenseData.paymentMethod?.id,
+            null, // payment_method_id will be set later if needed
             expenseData.date,
             expenseData.merchant,
             expenseData.currency,
-            imageUrl,
+            null, // receipt_url - this would come from the original request
             expenseOutput.items ? JSON.stringify(expenseOutput.items) : null,
             expenseOutput.tax ?? 0,
             expenseOutput.tip ?? 0,
@@ -231,17 +181,6 @@ export const POST = async (request: NextRequest) => {
           if (catRows.length > 0) categoryName = catRows[0].name;
         }
 
-        let paymentMethodName = null;
-        // Note: paymentMethod is not strongly typed in expenseData for name, so we only use ID here.
-        // If paymentMethod name is needed, workflow/expenseData needs to ensure it's available or fetched.
-        if (newExpense.payment_method_id) {
-          const { rows: pmRows } = await client.query(
-            "SELECT name FROM expense_payment_methods WHERE id = $1",
-            [newExpense.payment_method_id]
-          );
-          if (pmRows.length > 0) paymentMethodName = pmRows[0].name;
-        }
-
         return NextResponse.json({
           success: true,
           expense: {
@@ -254,12 +193,12 @@ export const POST = async (request: NextRequest) => {
             merchant: newExpense.merchant,
             currency: newExpense.currency,
             receiptUrl: newExpense.receipt_url,
-            items: newExpense.items || undefined, // Ensure it's undefined if null/empty
+            items: newExpense.items || undefined,
             tax: newExpense.tax ? parseFloat(newExpense.tax) : undefined,
             tip: newExpense.tip ? parseFloat(newExpense.tip) : undefined,
             notes: newExpense.notes || undefined,
             categoryName: categoryName,
-            paymentMethodName: paymentMethodName,
+            paymentMethodName: null,
             createdAt: new Date(newExpense.created_at).toISOString(),
             updatedAt: new Date(newExpense.updated_at).toISOString(),
           },
@@ -294,10 +233,11 @@ export const POST = async (request: NextRequest) => {
       {
         error: "Error processing expense",
         details: errorMessage,
-        // Only include stack in development
         stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
       },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 };

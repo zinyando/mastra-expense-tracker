@@ -1,11 +1,6 @@
 // API Types
 
-import type {
-  PaymentMethod,
-  Category,
-  Expense,
-  DashboardStats,
-} from "@/types";
+import type { PaymentMethod, Category, Expense, DashboardStats } from "@/types";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -102,7 +97,9 @@ export async function getExpenseById(id: string): Promise<Expense> {
 
 export async function updateExpense(
   id: string,
-  data: Partial<Omit<Expense, "id" | "createdAt" | "updatedAt" | "paymentMethodName">>
+  data: Partial<
+    Omit<Expense, "id" | "createdAt" | "updatedAt" | "paymentMethodName">
+  >
 ): Promise<Expense> {
   const response = await fetch(`/api/expenses/${id}`, {
     method: "PUT",
@@ -115,7 +112,16 @@ export async function updateExpense(
 }
 
 // Workflow-based expense processing
-export async function processExpenseImage(imageUrl: string): Promise<Expense> {
+export type SuspendedWorkflow = {
+  status: string;
+  suspendedData: Record<string, unknown>;
+  suspendedSteps: string[][];
+  workflowId: string;
+};
+
+export async function processExpenseImage(
+  imageUrl: string
+): Promise<Expense | SuspendedWorkflow> {
   const response = await fetch("/api/expenses/create", {
     method: "POST",
     headers: {
@@ -127,7 +133,71 @@ export async function processExpenseImage(imageUrl: string): Promise<Expense> {
   const data = await handleResponse<{
     expense?: Expense;
     status?: string;
-    suspendedData?: Partial<Expense>;
+    suspendedData?: Record<string, unknown>;
+    suspendedSteps?: string[][];
+    fallback?: boolean;
+    message: string;
+    workflowId?: string;
+  }>(response);
+
+  let expense: Expense;
+
+  if (data.expense) {
+    expense = data.expense;
+    return expense;
+  } else if (data.status === "suspended") {
+    // For suspended workflows, use the actual suspended data or fallback to defaults
+    const workflowData = data.suspendedData as
+      | { currentData?: Record<string, unknown> }
+      | undefined;
+    const currentData = workflowData?.currentData;
+
+    // Only use defaults if we don't have valid suspended data
+    const expenseData = currentData || {
+      merchant: "Pending",
+      amount: 0,
+      currency: "USD",
+      date: new Date().toISOString(),
+      description: "Pending expense",
+      category: "",
+      items: [],
+      tax: 0,
+      tip: 0,
+      notes: "",
+    };
+
+    // Create a suspended workflow object with the actual data
+    return {
+      status: "suspended",
+      suspendedData: {
+        currentData: expenseData,
+      },
+      suspendedSteps: data.suspendedSteps || [["review-expense"]],
+      workflowId: data.workflowId || `workflow_${Date.now()}`,
+    };
+  }
+
+  throw new ApiError(500, data.message || "Failed to process expense");
+}
+
+export async function resumeWorkflow(
+  workflowId: string,
+  stepId: string,
+  resumeData: Record<string, unknown>
+): Promise<Expense | SuspendedWorkflow> {
+  const response = await fetch("/api/expenses/resume", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ workflowId, stepId, resumeData }),
+  });
+
+  const data = await handleResponse<{
+    expense?: Expense;
+    status?: string;
+    suspendedData?: Record<string, unknown>;
+    suspendedSteps?: string[][];
     fallback?: boolean;
     message: string;
   }>(response);
@@ -136,22 +206,18 @@ export async function processExpenseImage(imageUrl: string): Promise<Expense> {
 
   if (data.expense) {
     expense = data.expense;
-
-    // If using fallback storage, save to localStorage
     return expense;
   } else if (data.status === "suspended" && data.suspendedData) {
-    // Add fake ID and timestamps if they don't exist in suspended data
-    expense = {
-      id: `temp_${Date.now()}`,
-      ...data.suspendedData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as Expense;
-
-    return expense;
+    // Return suspended workflow information
+    return {
+      status: "suspended",
+      suspendedData: data.suspendedData,
+      suspendedSteps: data.suspendedSteps || [],
+      workflowId: workflowId,
+    };
   }
 
-  throw new ApiError(500, data.message || "Failed to process expense");
+  throw new ApiError(500, data.message || "Failed to resume workflow");
 }
 
 export async function updateWorkflowExpense(
