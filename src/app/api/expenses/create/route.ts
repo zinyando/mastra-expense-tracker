@@ -76,8 +76,6 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    console.log("Processing expense from image URL:", imageUrl);
-
     // Start the expense workflow
     const run = expenseWorkflow.createRun();
     const rawResult = await run.start({ inputData: { imageUrl } });
@@ -106,7 +104,7 @@ export const POST = async (request: NextRequest) => {
         currency: expenseOutput.currency || "USD",
         tax: expenseOutput.tax ?? 0,
         tip: expenseOutput.tip ?? 0,
-        notes: expenseOutput.notes // Assuming workflow might provide notes
+        notes: expenseOutput.notes, // Assuming workflow might provide notes
       };
 
       try {
@@ -192,7 +190,10 @@ export const POST = async (request: NextRequest) => {
 
         let categoryName = null;
         if (newExpense.category_id) {
-          const { rows: catRows } = await client.query('SELECT name FROM expense_categories WHERE id = $1', [newExpense.category_id]);
+          const { rows: catRows } = await client.query(
+            "SELECT name FROM expense_categories WHERE id = $1",
+            [newExpense.category_id]
+          );
           if (catRows.length > 0) categoryName = catRows[0].name;
         }
 
@@ -200,7 +201,10 @@ export const POST = async (request: NextRequest) => {
         // Note: paymentMethod is not strongly typed in expenseData for name, so we only use ID here.
         // If paymentMethod name is needed, workflow/expenseData needs to ensure it's available or fetched.
         if (newExpense.payment_method_id) {
-          const { rows: pmRows } = await client.query('SELECT name FROM expense_payment_methods WHERE id = $1', [newExpense.payment_method_id]);
+          const { rows: pmRows } = await client.query(
+            "SELECT name FROM expense_payment_methods WHERE id = $1",
+            [newExpense.payment_method_id]
+          );
           if (pmRows.length > 0) paymentMethodName = pmRows[0].name;
         }
 
