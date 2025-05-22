@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createWorkflow, createStep } from "@mastra/core/workflows/vNext";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { useExpenseStore } from "@/store/expenseStore";
+import { useCategoryStore } from "@/store/categoryStore";
 
 async function fetchCategoriesFromAPI(): Promise<string[]> {
   const response = await fetch(
@@ -136,9 +138,32 @@ const categorizeExpense = createStep({
   },
 });
 
+const reviewExpense = createStep({
+  id: "review-expense",
+  description: "Allow user to review and confirm expense details",
+  inputSchema: expenseSchema,
+  resumeSchema: expenseSchema,
+  suspendSchema: z.object({
+    currentData: expenseSchema,
+  }),
+  outputSchema: expenseSchema,
+  execute: async ({ inputData, resumeData, suspend }) => {
+    if (!resumeData) {
+      console.log("Suspending review step");
+      await suspend({
+        currentData: inputData,
+      });
+
+      return inputData;
+    }
+
+    return resumeData;
+  },
+});
+
 const saveExpense = createStep({
   id: "save-expense",
-  description: "Save the expense to the database",
+  description: "Save the expense to the database via store",
   inputSchema: expenseSchema,
   outputSchema: z.object({
     id: z.string(),
@@ -147,16 +172,65 @@ const saveExpense = createStep({
     updatedAt: z.string().datetime(),
   }),
   execute: async ({ inputData }) => {
-    const newExpense = {
-      id: `exp_${Date.now()}`,
-      ...inputData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    console.log("Saving expense");
+    const addExpense = useExpenseStore.getState().addExpense;
+
+    const expenseData = {
+      merchant: inputData.merchant,
+      amount: inputData.amount,
+      currency: inputData.currency,
+      date: inputData.date,
+      description: inputData.notes || `Expense at ${inputData.merchant}`,
+      categoryId: await getCategoryIdByName(inputData.category),
+      items: inputData.items,
+      tax: inputData.tax,
+      tip: inputData.tip,
+      notes: inputData.notes,
     };
 
-    return newExpense;
+    const savedExpense = await addExpense(expenseData);
+
+    if (!savedExpense) {
+      throw new Error("Failed to save expense through the store");
+    }
+
+    return {
+      id: savedExpense.id,
+      merchant: savedExpense.merchant,
+      amount: savedExpense.amount,
+      currency: savedExpense.currency,
+      date: savedExpense.date,
+      category: savedExpense.categoryName || inputData.category,
+      items: savedExpense.items,
+      tax: savedExpense.tax,
+      tip: savedExpense.tip,
+      notes: savedExpense.notes,
+      createdAt: savedExpense.createdAt,
+      updatedAt: savedExpense.updatedAt,
+    };
   },
 });
+
+async function getCategoryIdByName(categoryName: string): Promise<string> {
+  const categoryStore = useCategoryStore.getState();
+
+  if (categoryStore.categories.length === 0) {
+    await categoryStore.fetchCategories();
+  }
+  if (categoryStore.categories.length === 0) {
+    await categoryStore.fetchCategories();
+  }
+
+  const category = categoryStore.categories.find(
+    (cat) => cat.name.toLowerCase() === categoryName.toLowerCase()
+  );
+
+  if (!category) {
+    throw new Error(`Category not found: ${categoryName}`);
+  }
+
+  return category.id;
+}
 
 export const expenseWorkflow = createWorkflow({
   id: "expense-workflow",
@@ -169,10 +243,16 @@ export const expenseWorkflow = createWorkflow({
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   }),
-  steps: [extractExpenseData, categorizeExpense, saveExpense] as const,
+  steps: [
+    extractExpenseData,
+    categorizeExpense,
+    reviewExpense,
+    saveExpense,
+  ] as const,
 })
   .then(extractExpenseData)
   .then(categorizeExpense)
+  .then(reviewExpense)
   .then(saveExpense)
   .commit();
 
