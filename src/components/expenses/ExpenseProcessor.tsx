@@ -47,7 +47,9 @@ export default function ExpenseProcessor({
   onResumed,
   onClose,
 }: ExpenseProcessorProps) {
-  const [formData, setFormData] = useState<WorkflowExpense>(suspendedData || expense);
+  const [formData, setFormData] = useState<WorkflowExpense>(
+    suspendedData || expense
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addExpense, updateExpense } = useExpenseStore(); // Zustand actions
@@ -132,21 +134,44 @@ export default function ExpenseProcessor({
 
     try {
       if (workflowRunId) {
+        // Map category ID to name
+        const categoryName =
+          categories.find((c) => c.id === formData.categoryId)?.name || "";
+
+        // Prepare resume data with all required fields
+        const resumeData = {
+          merchant: formData.merchant,
+          amount: formData.amount,
+          currency: formData.currency,
+          date: formData.date,
+          category: categoryName,
+          items: formData.items || [],
+          tax: formData.tax || 0,
+          tip: formData.tip || 0,
+          notes: formData.notes || "",
+          imageUrl: formData.imageUrl,
+          categoryId: formData.categoryId,
+        };
+
+        console.log("Sending resume request with:", {
+          workflowId: workflowRunId,
+          stepId: "review-expense",
+          resumeData,
+        });
+
         // Resume workflow with reviewed data
-        const response = await fetch('/api/expenses/resume', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/expenses/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            workflowRunId,
-            resumeData: {
-              ...formData,
-              category: categories.find(c => c.id === formData.categoryId)?.name || '',
-            },
+            workflowId: workflowRunId,
+            stepId: "review-expense",
+            resumeData,
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to resume workflow');
+          throw new Error("Failed to resume workflow");
         }
 
         const result = await response.json();
@@ -163,7 +188,7 @@ export default function ExpenseProcessor({
         onResumed(formData);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save expense');
+      setError(err instanceof Error ? err.message : "Failed to save expense");
     } finally {
       setIsSubmitting(false);
     }
@@ -183,7 +208,9 @@ export default function ExpenseProcessor({
   return (
     <Card className="w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
       <CardHeader>
-        <CardTitle>{workflowRunId ? 'Review Expense' : 'Edit Expense'}</CardTitle>
+        <CardTitle>
+          {workflowRunId ? "Review Expense" : "Edit Expense"}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto">
         {error && (
@@ -278,7 +305,8 @@ export default function ExpenseProcessor({
                   </TableHeader>
                   <TableBody>
                     {(formData.items || []).map((item, index) => (
-                      <TableRow key={index}>{/* Consider using a unique item.id if available */}
+                      <TableRow key={index}>
+                        {/* Consider using a unique item.id if available */}
                         <TableCell>
                           <Input
                             type="text"
@@ -385,7 +413,12 @@ export default function ExpenseProcessor({
         </form>
       </CardContent>
       <CardFooter className="flex justify-end space-x-3">
-        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button

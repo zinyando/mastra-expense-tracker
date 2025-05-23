@@ -41,6 +41,7 @@ export interface Expense {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  imageUrl?: string;
 }
 
 export type WorkflowExpense = Expense;

@@ -3,9 +3,10 @@ import { createWorkflow, createStep } from "@mastra/core/workflows/vNext";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { useExpenseStore } from "@/store/expenseStore";
-import { useCategoryStore } from "@/store/categoryStore";
 
-async function fetchCategoriesFromAPI(): Promise<string[]> {
+async function fetchCategoriesFromAPI(): Promise<
+  { id: string; name: string }[]
+> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/categories`
   );
@@ -19,7 +20,10 @@ async function fetchCategoriesFromAPI(): Promise<string[]> {
     throw new Error("No categories found");
   }
 
-  return data.categories.map((cat: { name: string }) => cat.name);
+  return data.categories.map((cat: { id: string; name: string }) => ({
+    id: cat.id,
+    name: cat.name,
+  }));
 }
 
 const expenseSchema = z.object({
@@ -28,6 +32,8 @@ const expenseSchema = z.object({
   currency: z.string().default("USD").describe("Currency code, e.g., USD, EUR"),
   date: z.string().describe("Date of the expense"),
   category: z.string().describe("Expense category"),
+  categoryId: z.string().describe("Expense category ID"),
+  imageUrl: z.string().url("Valid image URL is required"),
   items: z
     .array(
       z.object({
@@ -70,7 +76,7 @@ const extractExpenseData = createStep({
       temperature: 0.1,
     });
 
-    const formattedData = { ...expenseData };
+    const formattedData = { ...expenseData, imageUrl };
 
     if (formattedData.date && !formattedData.date.includes("T")) {
       try {
@@ -97,14 +103,22 @@ const categorizeExpense = createStep({
   inputSchema: expenseSchema,
   outputSchema: expenseSchema,
   execute: async ({ inputData }) => {
-    const categories = await fetchCategoriesFromAPI();
+    // Fetch categories with their IDs
+    const categoriesResponse = await fetchCategoriesFromAPI();
+    const categories = categoriesResponse.map((c) => ({
+      id: c.id,
+      name: c.name,
+    }));
+
+    // Get category names for AI
+    const categoryNames = categories.map((c) => c.name);
 
     const { text } = await generateText({
       model: openai("gpt-4o"),
       messages: [
         {
           role: "system",
-          content: `You are an expense categorization assistant. Categorize the following expense into one of these categories: ${categories.join(", ")}. Return only the category name.`,
+          content: `You are an expense categorization assistant. Categorize the following expense into one of these categories: ${categoryNames.join(", ")}. Return only the category name.`,
         },
         {
           role: "user",
@@ -114,16 +128,21 @@ const categorizeExpense = createStep({
     });
 
     const categoryResponse = text.trim();
-
-    let bestMatch = "Other";
+    let bestMatch = categories.find((c) => c.name === "Other") || {
+      id: "other",
+      name: "Other",
+    };
 
     if (categoryResponse) {
-      if (categories.includes(categoryResponse)) {
-        bestMatch = categoryResponse;
+      // Try exact match first
+      const exactMatch = categories.find((c) => c.name === categoryResponse);
+      if (exactMatch) {
+        bestMatch = exactMatch;
       } else {
+        // Try case-insensitive match
         const lowerCaseResponse = categoryResponse.toLowerCase();
         const match = categories.find(
-          (c) => c.toLowerCase() === lowerCaseResponse
+          (c) => c.name.toLowerCase() === lowerCaseResponse
         );
         if (match) {
           bestMatch = match;
@@ -133,7 +152,8 @@ const categorizeExpense = createStep({
 
     return {
       ...inputData,
-      category: bestMatch,
+      categoryId: bestMatch.id,
+      category: bestMatch.name,
     };
   },
 });
@@ -173,17 +193,20 @@ const saveExpense = createStep({
   execute: async ({ inputData }) => {
     const addExpense = useExpenseStore.getState().addExpense;
 
+    // Use the category and categoryId that were already set by categorizeExpense step
     const expenseData = {
       merchant: inputData.merchant,
       amount: inputData.amount,
       currency: inputData.currency,
       date: inputData.date,
       description: inputData.notes || `Expense at ${inputData.merchant}`,
-      categoryId: await getCategoryIdByName(inputData.category),
+      categoryId: inputData.categoryId,
+      categoryName: inputData.category, // Use the category name from previous step
       items: inputData.items,
       tax: inputData.tax,
       tip: inputData.tip,
       notes: inputData.notes,
+      imageUrl: inputData.imageUrl,
     };
 
     const savedExpense = await addExpense(expenseData);
@@ -192,43 +215,25 @@ const saveExpense = createStep({
       throw new Error("Failed to save expense through the store");
     }
 
+    // Ensure all required fields are present and of the correct type
     return {
       id: savedExpense.id,
       merchant: savedExpense.merchant,
       amount: savedExpense.amount,
-      currency: savedExpense.currency,
+      currency: savedExpense.currency || "USD",
       date: savedExpense.date,
-      category: savedExpense.categoryName || inputData.category,
-      items: savedExpense.items,
-      tax: savedExpense.tax,
-      tip: savedExpense.tip,
-      notes: savedExpense.notes,
-      createdAt: savedExpense.createdAt,
-      updatedAt: savedExpense.updatedAt,
+      category: inputData.category, // Use category from previous step
+      categoryId: inputData.categoryId, // Include categoryId from previous step
+      imageUrl: savedExpense.imageUrl || inputData.imageUrl,
+      items: savedExpense.items || inputData.items,
+      tax: savedExpense.tax || 0,
+      tip: savedExpense.tip || 0,
+      notes: savedExpense.notes || inputData.notes,
+      createdAt: savedExpense.createdAt || new Date().toISOString(),
+      updatedAt: savedExpense.updatedAt || new Date().toISOString(),
     };
   },
 });
-
-async function getCategoryIdByName(categoryName: string): Promise<string> {
-  const categoryStore = useCategoryStore.getState();
-
-  if (categoryStore.categories.length === 0) {
-    await categoryStore.fetchCategories();
-  }
-  if (categoryStore.categories.length === 0) {
-    await categoryStore.fetchCategories();
-  }
-
-  const category = categoryStore.categories.find(
-    (cat) => cat.name.toLowerCase() === categoryName.toLowerCase()
-  );
-
-  if (!category) {
-    throw new Error(`Category not found: ${categoryName}`);
-  }
-
-  return category.id;
-}
 
 export const expenseWorkflow = createWorkflow({
   id: "expense-workflow",

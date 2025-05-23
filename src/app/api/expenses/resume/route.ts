@@ -11,6 +11,7 @@ type WorkflowStepOutput = {
   amount: number;
   currency: string;
   category: string;
+  categoryId: string;
   items?: Array<{
     description: string;
     total: number;
@@ -20,6 +21,7 @@ type WorkflowStepOutput = {
   tax?: number;
   tip?: number;
   notes?: string;
+  imageUrl: string;
 };
 
 type WorkflowStepBase<T> = {
@@ -48,7 +50,22 @@ export const dynamic = "force-dynamic";
 export const POST = async (request: NextRequest) => {
   const client = await pool.connect();
   try {
-    const { workflowId, stepId, resumeData } = await request.json();
+    const body = await request.json();
+    console.log("Resume endpoint received:", body);
+
+    const { workflowId, stepId, resumeData } = body;
+
+    if (!workflowId || !stepId || !resumeData) {
+      console.log("Missing required fields:", {
+        hasWorkflowId: !!workflowId,
+        hasStepId: !!stepId,
+        hasResumeData: !!resumeData,
+      });
+      return NextResponse.json(
+        { error: "workflowId, stepId, and resumeData are required" },
+        { status: 400 }
+      );
+    }
 
     if (!workflowId || !stepId || !resumeData) {
       return NextResponse.json(
@@ -59,11 +76,20 @@ export const POST = async (request: NextRequest) => {
 
     // Resume the workflow
     const run = expenseWorkflow.createRun({ runId: workflowId });
-    const rawResult = await run.resume({
-      step: stepId,
-      resumeData,
+    const result = await run.start({
+      inputData: { imageUrl: resumeData.imageUrl },
     });
-    
+
+    let rawResult;
+    if (result.status === "suspended") {
+      rawResult = await run.resume({
+        step: stepId,
+        resumeData: {
+          ...resumeData,
+        },
+      });
+    }
+
     const workflowResult = rawResult as unknown as WorkflowResult;
 
     // If still suspended, return the suspended state
@@ -73,7 +99,7 @@ export const POST = async (request: NextRequest) => {
         suspendedData: workflowResult.suspendedData,
         suspendedSteps: workflowResult.suspended,
         message: "Workflow still suspended, waiting for more input",
-        fallback: false
+        fallback: false,
       });
     }
 
