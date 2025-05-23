@@ -2,7 +2,8 @@
 import type { PaymentMethod, Category, Expense, DashboardStats } from "@/types";
 
 // Get base URL for API calls
-const getBaseUrl = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const getBaseUrl = () =>
+  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export class ApiError extends Error {
   constructor(
@@ -303,6 +304,6 @@ export async function deletePaymentMethod(id: string): Promise<void> {
 
 // Dashboard Stats API
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const response = await fetch(`${getBaseUrl()}/api/dashboard/stats`);
+  const response = await fetch(`${getBaseUrl()}/api/stats`);
   return handleResponse(response);
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import expenseWorkflow from "@/mastra/workflows/expense-workflow";
 import { pool } from "@/lib/db";
-import crypto from "crypto";
 
 // This is similar to the type in create/route.ts
 // In a real application, these types would be shared
@@ -55,39 +54,20 @@ export const POST = async (request: NextRequest) => {
     const { workflowId, stepId, resumeData } = body;
 
     if (!workflowId || !stepId || !resumeData) {
-      console.log("Missing required fields:", {
-        hasWorkflowId: !!workflowId,
-        hasStepId: !!stepId,
-        hasResumeData: !!resumeData,
-      });
       return NextResponse.json(
         { error: "workflowId, stepId, and resumeData are required" },
         { status: 400 }
       );
     }
 
-    if (!workflowId || !stepId || !resumeData) {
-      return NextResponse.json(
-        { error: "workflowId, stepId, and resumeData are required" },
-        { status: 400 }
-      );
-    }
-
-    // Resume the workflow
+    // Resume the workflow from where it was suspended
     const run = expenseWorkflow.createRun({ runId: workflowId });
-    const result = await run.start({
-      inputData: { imageUrl: resumeData.imageUrl },
+    const rawResult = await run.resume({
+      step: stepId,
+      resumeData: {
+        ...resumeData,
+      },
     });
-
-    let rawResult;
-    if (result.status === "suspended") {
-      rawResult = await run.resume({
-        step: stepId,
-        resumeData: {
-          ...resumeData,
-        },
-      });
-    }
 
     const workflowResult = rawResult as unknown as WorkflowResult;
 
@@ -110,134 +90,12 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    // For successful workflows, use the final result
-    const expenseOutput = workflowResult.result;
-
-    if (expenseOutput) {
-      const expenseData = {
-        id: crypto.randomUUID(),
-        amount: expenseOutput.amount,
-        description: expenseOutput.items?.[0]?.description || "Unknown",
-        category: expenseOutput.category
-          ? {
-              id: crypto.randomUUID(),
-              name: expenseOutput.category,
-            }
-          : undefined,
-        date: expenseOutput.date,
-        merchant: expenseOutput.merchant,
-        currency: expenseOutput.currency || "USD",
-        tax: expenseOutput.tax ?? 0,
-        tip: expenseOutput.tip ?? 0,
-        notes: expenseOutput.notes,
-      };
-
-      try {
-        await client.query("BEGIN");
-
-        // Create category if it doesn't exist
-        let categoryId = null;
-        if (expenseData.category?.name) {
-          const { rows: existingCategory } = await client.query(
-            "SELECT id FROM expense_categories WHERE name = $1",
-            [expenseData.category.name]
-          );
-
-          if (existingCategory.length > 0) {
-            categoryId = existingCategory[0].id;
-          } else {
-            const {
-              rows: [newCategory],
-            } = await client.query(
-              "INSERT INTO expense_categories (id, name) VALUES ($1, $2) RETURNING id",
-              [expenseData.category.id, expenseData.category.name]
-            );
-            categoryId = newCategory.id;
-          }
-        }
-
-        // Insert the expense
-        const {
-          rows: [newExpense],
-        } = await client.query(
-          `
-          INSERT INTO expenses (
-            id,
-            amount,
-            description,
-            category_id,
-            payment_method_id,
-            date,
-            merchant,
-            currency,
-            receipt_url,
-            items,
-            tax,
-            tip,
-            notes
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-          RETURNING *
-        `,
-          [
-            crypto.randomUUID(),
-            expenseData.amount,
-            expenseData.description,
-            categoryId,
-            null, // payment_method_id will be set later if needed
-            expenseData.date,
-            expenseData.merchant,
-            expenseData.currency,
-            null, // receipt_url - this would come from the original request
-            expenseOutput.items ? JSON.stringify(expenseOutput.items) : null,
-            expenseOutput.tax ?? 0,
-            expenseOutput.tip ?? 0,
-            expenseData.notes || null,
-          ]
-        );
-
-        await client.query("COMMIT");
-
-        let categoryName = null;
-        if (newExpense.category_id) {
-          const { rows: catRows } = await client.query(
-            "SELECT name FROM expense_categories WHERE id = $1",
-            [newExpense.category_id]
-          );
-          if (catRows.length > 0) categoryName = catRows[0].name;
-        }
-
-        return NextResponse.json({
-          success: true,
-          expense: {
-            id: newExpense.id,
-            amount: parseFloat(newExpense.amount),
-            description: newExpense.description,
-            categoryId: newExpense.category_id,
-            paymentMethodId: newExpense.payment_method_id,
-            date: newExpense.date.toISOString().split("T")[0],
-            merchant: newExpense.merchant,
-            currency: newExpense.currency,
-            receiptUrl: newExpense.receipt_url,
-            items: newExpense.items || undefined,
-            tax: newExpense.tax ? parseFloat(newExpense.tax) : undefined,
-            tip: newExpense.tip ? parseFloat(newExpense.tip) : undefined,
-            notes: newExpense.notes || undefined,
-            categoryName: categoryName,
-            paymentMethodName: null,
-            createdAt: new Date(newExpense.created_at).toISOString(),
-            updatedAt: new Date(newExpense.updated_at).toISOString(),
-          },
-        });
-      } catch (dbError) {
-        await client.query("ROLLBACK");
-        console.error("Database error:", dbError);
-        return NextResponse.json(
-          {
-            error: `Failed to save expense to database: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
-          },
-          { status: 500 }
-        );
-      }
+    // For successful workflows, return the result
+    if (workflowResult.result) {
+      return NextResponse.json({
+        success: true,
+        expense: workflowResult.result
+      });
     }
 
     // If we reach here, it means the workflow failed
