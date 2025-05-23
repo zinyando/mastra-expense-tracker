@@ -126,7 +126,7 @@ export async function POST(request: Request) {
       `
       INSERT INTO expenses (
         id, amount, description, category_id, payment_method_id, date, merchant, currency, items, tax, tip, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
       RETURNING id, amount, description, category_id, payment_method_id, date, merchant, currency, items, tax, tip, notes, created_at, updated_at
     `,
       [
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         date,
         merchant,
         currency,
-        items || null,
+        items ? JSON.stringify(items) : null,
         tax || null,
         tip || null,
         notes || null,

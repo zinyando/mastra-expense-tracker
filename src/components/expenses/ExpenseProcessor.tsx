@@ -153,12 +153,6 @@ export default function ExpenseProcessor({
           categoryId: formData.categoryId,
         };
 
-        console.log("Sending resume request with:", {
-          workflowId: workflowRunId,
-          stepId: "review-expense",
-          resumeData,
-        });
-
         // Resume workflow with reviewed data
         const response = await fetch("/api/expenses/resume", {
           method: "POST",

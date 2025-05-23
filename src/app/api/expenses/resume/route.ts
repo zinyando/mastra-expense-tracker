@@ -51,7 +51,6 @@ export const POST = async (request: NextRequest) => {
   const client = await pool.connect();
   try {
     const body = await request.json();
-    console.log("Resume endpoint received:", body);
 
     const { workflowId, stepId, resumeData } = body;
 

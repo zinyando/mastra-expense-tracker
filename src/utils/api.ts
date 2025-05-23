@@ -1,6 +1,9 @@
 // API Types
-
 import type { PaymentMethod, Category, Expense, DashboardStats } from "@/types";
+
+// Get base URL for API calls
+const getBaseUrl = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -21,14 +24,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 // Categories API
 export async function getCategories(): Promise<{ categories: Category[] }> {
-  const response = await fetch("/api/categories");
+  const response = await fetch(`${getBaseUrl()}/api/categories`);
   return handleResponse(response);
 }
 
 export async function createCategory(
   data: Omit<Category, "id">
 ): Promise<Category> {
-  const response = await fetch("/api/categories", {
+  const response = await fetch(`${getBaseUrl()}/api/categories`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -42,7 +45,7 @@ export async function updateCategory(
   id: string,
   data: Partial<Omit<Category, "id">>
 ): Promise<Category> {
-  const response = await fetch(`/api/categories/${id}`, {
+  const response = await fetch(`${getBaseUrl()}/api/categories/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -53,7 +56,7 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  const response = await fetch(`/api/categories/${id}`, {
+  const response = await fetch(`${getBaseUrl()}/api/categories/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -68,7 +71,7 @@ export async function deleteCategory(id: string): Promise<void> {
 // Expenses API
 export async function getExpenses(): Promise<{ expenses: Expense[] }> {
   try {
-    const response = await fetch("/api/expenses");
+    const response = await fetch(`${getBaseUrl()}/api/expenses`);
     const data = await handleResponse<{ expenses: Expense[] }>(response);
     return data;
   } catch (error) {
@@ -80,7 +83,7 @@ export async function getExpenses(): Promise<{ expenses: Expense[] }> {
 export async function createExpense(
   data: Omit<Expense, "id" | "createdAt" | "updatedAt" | "paymentMethodName">
 ): Promise<Expense> {
-  const response = await fetch("/api/expenses", {
+  const response = await fetch(`${getBaseUrl()}/api/expenses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -91,7 +94,7 @@ export async function createExpense(
 }
 
 export async function getExpenseById(id: string): Promise<Expense> {
-  const response = await fetch(`/api/expenses/${id}`);
+  const response = await fetch(`${getBaseUrl()}/api/expenses/${id}`);
   return handleResponse(response);
 }
 
@@ -101,7 +104,7 @@ export async function updateExpense(
     Omit<Expense, "id" | "createdAt" | "updatedAt" | "paymentMethodName">
   >
 ): Promise<Expense> {
-  const response = await fetch(`/api/expenses/${id}`, {
+  const response = await fetch(`${getBaseUrl()}/api/expenses/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -238,7 +241,7 @@ export async function updateWorkflowExpense(
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  const response = await fetch(`/api/expenses/${id}`, {
+  const response = await fetch(`${getBaseUrl()}/api/expenses/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -254,14 +257,14 @@ export async function deleteExpense(id: string): Promise<void> {
 export async function getPaymentMethods(): Promise<{
   paymentMethods: PaymentMethod[];
 }> {
-  const response = await fetch("/api/payment-methods");
+  const response = await fetch(`${getBaseUrl()}/api/payment-methods`);
   return handleResponse(response);
 }
 
 export async function createPaymentMethod(
   data: Omit<PaymentMethod, "id">
 ): Promise<PaymentMethod> {
-  const response = await fetch("/api/payment-methods", {
+  const response = await fetch(`${getBaseUrl()}/api/payment-methods`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -275,7 +278,7 @@ export async function updatePaymentMethod(
   id: string,
   data: Partial<Omit<PaymentMethod, "id">>
 ): Promise<PaymentMethod> {
-  const response = await fetch(`/api/payment-methods/${id}`, {
+  const response = await fetch(`${getBaseUrl()}/api/payment-methods/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -286,7 +289,7 @@ export async function updatePaymentMethod(
 }
 
 export async function deletePaymentMethod(id: string): Promise<void> {
-  const response = await fetch(`/api/payment-methods/${id}`, {
+  const response = await fetch(`${getBaseUrl()}/api/payment-methods/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -300,6 +303,6 @@ export async function deletePaymentMethod(id: string): Promise<void> {
 
 // Dashboard Stats API
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const response = await fetch("/api/stats");
+  const response = await fetch(`${getBaseUrl()}/api/dashboard/stats`);
   return handleResponse(response);
 }
