@@ -224,12 +224,16 @@ export default function ExpenseList() {
 
   if (overallLoading) {
     return (
-      <div className="space-y-6 px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">Expenses</h1>
-          <div>
-            <Skeleton className="h-10 w-[120px]" />
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
+        <div className="sm:flex sm:items-center">
+          <div className="sm:flex-auto">
+            <h1 className="text-2xl font-semibold leading-6 text-gray-900">Expenses</h1>
+            <p className="mt-2 text-sm text-gray-700">
+              <Skeleton className="h-4 w-[300px]" />
+            </p>
+          </div>
+          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <Skeleton className="h-9 w-[120px]" />
           </div>
         </div>
 
@@ -282,23 +286,26 @@ export default function ExpenseList() {
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {[...Array(5)].map((_, index) => (
                       <tr key={`skeleton-${index}`}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6">
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                           <Skeleton className="h-4 w-[80px]" />
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <Skeleton className="h-4 w-[120px]" />
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 truncate max-w-xs">
                           <Skeleton className="h-4 w-[150px]" />
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <Skeleton className="h-4 w-[100px]" />
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <Skeleton className="h-4 w-[60px]" />
                         </td>
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <Skeleton className="h-4 w-[50px]" />
+                          <div className="flex justify-end space-x-3">
+                            <Skeleton className="h-4 w-[30px]" />
+                            <Skeleton className="h-5 w-5" />
+                          </div>
                         </td>
                       </tr>
                     ))}
