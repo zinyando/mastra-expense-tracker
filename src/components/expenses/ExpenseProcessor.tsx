@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useExpenseStore } from "@/store/expenseStore"; // Import Zustand store
+import { useExpenseStore } from "@/store/expenseStore";
 import type { Category, WorkflowExpense } from "@/types";
 import {
   Card,
@@ -32,11 +32,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 interface ExpenseProcessorProps {
   expense: WorkflowExpense;
-  categories: Category[]; // Receive categories as a prop
-  suspendedData?: WorkflowExpense; // Data from workflow's expenseSchema when suspended
-  workflowRunId?: string; // ID of the workflow run if in review mode
-  onResumed: (finalExpense: WorkflowExpense) => void; // Callback after workflow resume
-  onClose: () => void; // Close the modal
+  categories: Category[];
+  suspendedData?: WorkflowExpense;
+  workflowRunId?: string;
+  onResumed: (finalExpense: WorkflowExpense) => void;
+  onClose: () => void;
 }
 
 export default function ExpenseProcessor({
@@ -51,12 +51,12 @@ export default function ExpenseProcessor({
     const initialData = suspendedData || expense;
     return {
       ...initialData,
-      currency: initialData.currency || "USD", // Default to "USD" if currency is falsy
+      currency: initialData.currency || "USD",
     };
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { addExpense, updateExpense } = useExpenseStore(); // Zustand actions
+  const { addExpense, updateExpense } = useExpenseStore();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -66,15 +66,13 @@ export default function ExpenseProcessor({
 
     setFormData((prev) => {
       if (name.includes(".")) {
-        // items.field.index
         const [parent, child, indexStr] = name.split(".");
         if (parent === "items" && indexStr) {
           const items = JSON.parse(JSON.stringify(prev.items || []));
           const idx = parseInt(indexStr, 10);
 
-          // Ensure the item exists or create a placeholder if adding new row functionality
           while (items.length <= idx) {
-            items.push({ description: "", total: 0 }); // Adjust placeholder as needed
+            items.push({ description: "", total: 0 });
           }
           const currentItem = items[idx];
 
@@ -90,7 +88,6 @@ export default function ExpenseProcessor({
 
           currentItem[child] = processedValue;
 
-          // Recalculate item total if quantity or unitPrice changed
           if (
             (child === "quantity" || child === "unitPrice") &&
             currentItem.quantity !== undefined &&
@@ -105,9 +102,7 @@ export default function ExpenseProcessor({
         return prev;
       }
 
-      // Handle flat properties
       if (type === "number" || ["amount", "tax", "tip"].includes(name)) {
-        // For optional fields like tax/tip, allow undefined if cleared. For amount, default to 0.
         const isOptional = ["tax", "tip"].includes(name);
         const numValue =
           value === "" ? (isOptional ? undefined : 0) : parseFloat(value);
@@ -138,11 +133,9 @@ export default function ExpenseProcessor({
 
     try {
       if (workflowRunId) {
-        // Map category ID to name
         const categoryName =
           categories.find((c) => c.id === formData.categoryId)?.name || "";
 
-        // Prepare resume data with all required fields
         const resumeData = {
           merchant: formData.merchant,
           amount: formData.amount,
@@ -157,7 +150,6 @@ export default function ExpenseProcessor({
           categoryId: formData.categoryId,
         };
 
-        // Resume workflow with reviewed data
         const response = await fetch("/api/expenses/resume", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -175,7 +167,6 @@ export default function ExpenseProcessor({
         const result = await response.json();
         onResumed(result.expense);
       } else {
-        // Normal expense save flow
         if (formData.id) {
           await updateExpense(formData.id, formData);
         } else {
@@ -192,16 +183,11 @@ export default function ExpenseProcessor({
     }
   };
 
-  // Calculate totals
   const itemsTotal =
     formData.items?.reduce((sum, item) => sum + item.total, 0) || 0;
   const taxAmount = formData.tax || 0;
   const tipAmount = formData.tip || 0;
   const total = itemsTotal + taxAmount + tipAmount;
-  // Ensure formData.amount is updated if individual items are used and there's no direct amount input
-  // Or ensure that if amount is manually entered, it takes precedence or items are cleared.
-  // For now, assuming 'amount' field is separate or handled correctly by existing logic.
-  // If total is meant to be formData.amount, then: // useEffect(() => { setFormData(prev => ({...prev, amount: total})); }, [total]);
 
   return (
     <Card className="w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
@@ -419,11 +405,7 @@ export default function ExpenseProcessor({
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          onClick={handleSubmit} // Attach handleSubmit here as well if form element is not implicitly submitting
-          disabled={isSubmitting}
-        >
+        <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
           {isSubmitting ? "Saving..." : "Save Expense"}
         </Button>
       </CardFooter>

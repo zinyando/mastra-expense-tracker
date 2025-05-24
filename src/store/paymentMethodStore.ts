@@ -48,7 +48,7 @@ export const usePaymentMethodStore = create<PaymentMethodState>((set) => ({
         paymentMethods: [...state.paymentMethods, newMethod],
         isLoading: false,
       }));
-      // If the new method is default, update others
+
       if (newMethod.isDefault) {
         set((state) => ({
           paymentMethods: state.paymentMethods.map((pm) =>
@@ -80,7 +80,7 @@ export const usePaymentMethodStore = create<PaymentMethodState>((set) => ({
         ),
         isLoading: false,
       }));
-      // If the updated method is now default, update others
+
       if (updatedMethod.isDefault) {
         set((state) => ({
           paymentMethods: state.paymentMethods.map((pm) =>
@@ -127,33 +127,21 @@ export const usePaymentMethodStore = create<PaymentMethodState>((set) => ({
   setDefaultPaymentMethod: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Call updatePaymentMethod to set the isDefault flag
       const updatedDefaultMethod = await api.updatePaymentMethod(id, {
         isDefault: true,
       });
-
-      // If the API call is successful and returns the updated method
       if (updatedDefaultMethod) {
         set((state) => ({
           paymentMethods: state.paymentMethods.map((pm) => ({
             ...pm,
-            // Set the current one as default, others as not default
             isDefault: pm.id === updatedDefaultMethod.id,
           })),
           isLoading: false,
         }));
       } else {
-        // Fallback or error if updatedDefaultMethod is not returned as expected
-        // This case might indicate an issue with the API or local logic not aligning
-        // For now, we'll assume the API returns the updated method and handles unsetting others.
-        // If not, the store's updatePaymentMethod logic already handles updating other methods if 'isDefault' is true.
-        // To be safe, refetch or manually ensure other defaults are false if API doesn't manage it.
         console.warn(
           "setDefaultPaymentMethod: updatedDefaultMethod was not returned, relying on API to unset other defaults."
         );
-        // Re-fetch to ensure consistency if API behavior is uncertain
-        // get().fetchPaymentMethods();
-        // Or, more directly, assume the specific one is now default:
         set((state) => ({
           paymentMethods: state.paymentMethods.map((pm) => ({
             ...pm,

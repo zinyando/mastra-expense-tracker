@@ -1,7 +1,5 @@
-// API Types
 import type { PaymentMethod, Category, Expense, DashboardStats } from "@/types";
 
-// Get base URL for API calls
 const getBaseUrl = () =>
   process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -23,7 +21,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-// Categories API
 export async function getCategories(): Promise<{ categories: Category[] }> {
   const response = await fetch(`${getBaseUrl()}/api/categories`);
   return handleResponse(response);
@@ -69,7 +66,6 @@ export async function deleteCategory(id: string): Promise<void> {
   }
 }
 
-// Expenses API
 export async function getExpenses(): Promise<{ expenses: Expense[] }> {
   try {
     const response = await fetch(`${getBaseUrl()}/api/expenses`);
@@ -115,7 +111,6 @@ export async function updateExpense(
   return handleResponse(response);
 }
 
-// Workflow-based expense processing
 export type SuspendedWorkflow = {
   status: string;
   suspendedData: Record<string, unknown>;
@@ -150,13 +145,10 @@ export async function processExpenseImage(
     expense = data.expense;
     return expense;
   } else if (data.status === "suspended") {
-    // For suspended workflows, use the actual suspended data or fallback to defaults
     const workflowData = data.suspendedData as
       | { currentData?: Record<string, unknown> }
       | undefined;
     const currentData = workflowData?.currentData;
-
-    // Only use defaults if we don't have valid suspended data
     const expenseData = currentData || {
       merchant: "Pending",
       amount: 0,
@@ -170,7 +162,6 @@ export async function processExpenseImage(
       notes: "",
     };
 
-    // Create a suspended workflow object with the actual data
     return {
       status: "suspended",
       suspendedData: {
@@ -212,7 +203,6 @@ export async function resumeWorkflow(
     expense = data.expense;
     return expense;
   } else if (data.status === "suspended" && data.suspendedData) {
-    // Return suspended workflow information
     return {
       status: "suspended",
       suspendedData: data.suspendedData,
@@ -254,7 +244,6 @@ export async function deleteExpense(id: string): Promise<void> {
   }
 }
 
-// Payment Methods API
 export async function getPaymentMethods(): Promise<{
   paymentMethods: PaymentMethod[];
 }> {
@@ -302,7 +291,6 @@ export async function deletePaymentMethod(id: string): Promise<void> {
   }
 }
 
-// Dashboard Stats API
 export async function getDashboardStats(): Promise<DashboardStats> {
   const response = await fetch(`${getBaseUrl()}/api/stats`);
   return handleResponse(response);

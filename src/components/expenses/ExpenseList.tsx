@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Expense, WorkflowExpense, Category } from "@/types"; // Assuming WorkflowExpense and Category are in @/types
-import { processExpenseImage } from "@/utils/api"; // updateWorkflowExpense is likely handled in ExpenseProcessor
+import { Expense, WorkflowExpense, Category } from "@/types";
+import { processExpenseImage } from "@/utils/api";
 import { useExpenseStore } from "@/store/expenseStore";
 import { useCategoryStore } from "@/store/categoryStore";
 import Modal from "@/components/ui/Modal";
@@ -34,7 +34,7 @@ export default function ExpenseList() {
     null
   );
   const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
-  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false); // This might be managed inside ExpenseUpload or Processor
+  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
   const overallLoading = isLoadingExpenses || isLoadingCategories;
@@ -50,36 +50,29 @@ export default function ExpenseList() {
     );
   }, [categoriesList]);
 
-  // Function to handle deleting an expense
   const handleDeleteExpense = async () => {
     if (!expenseToDelete) return;
     try {
-      // Error state will be handled by the store, component can listen if needed
       await deleteExpenseFromStore(expenseToDelete.id);
-      setExpenseToDelete(null); // Close confirmation modal or clear selection
-      // The store update will trigger a re-render with the updated expenses list
+      setExpenseToDelete(null);
     } catch (err) {
-      // Optionally, handle/display error specific to this action if not covered by global store error
       console.error("Delete expense error (local component):", err);
-      // setError(err instanceof Error ? err.message : "Failed to delete expense"); // This local error state might be redundant
     }
   };
 
   const handleEditExpense = async (expense: Expense) => {
     try {
-      // Show loading state while we fetch the complete expense details
       const loadingExpense: WorkflowExpense = {
         id: expense.id,
-        merchant: expense.merchant, // Use expense.merchant
-        description: expense.description, // Add description field
+        merchant: expense.merchant,
+        description: expense.description,
         amount: expense.amount,
-        currency: "USD", // Ensure this is correct or from expense.currency
+        currency: "USD",
         date: expense.date,
         categoryId: expense.categoryId,
-        items: expense.items || [], // Use existing items if available
-        createdAt: expense.createdAt || new Date().toISOString(), // Prefer existing timestamps
+        items: expense.items || [],
+        createdAt: expense.createdAt || new Date().toISOString(),
         updatedAt: expense.updatedAt || new Date().toISOString(),
-        // Ensure all required fields from 'Expense' type are present
         paymentMethodId: expense.paymentMethodId,
         tax: expense.tax,
         tip: expense.tip,
@@ -91,30 +84,24 @@ export default function ExpenseList() {
       setCurrentExpense(loadingExpense);
       setIsEditModalOpen(true);
 
-      // Try to fetch the complete expense details using the store action
       try {
-        const completeExpense = await fetchExpenseById(expense.id); // This ensures it's in the store and returns it
+        const completeExpense = await fetchExpenseById(expense.id);
 
         if (completeExpense) {
           const updatedWorkflowExpense: WorkflowExpense = {
-            // Ensure WorkflowExpense includes all necessary fields from Expense
             id: completeExpense.id,
-            merchant: completeExpense.merchant || loadingExpense.merchant, // Prefer completeExpense.merchant directly
+            merchant: completeExpense.merchant || loadingExpense.merchant,
             amount: completeExpense.amount,
             currency: completeExpense.currency,
             date: completeExpense.date,
             categoryId: completeExpense.categoryId,
             items: completeExpense.items || [],
-            description: completeExpense.description, // Add if WorkflowExpense has it
-            // categoryName: completeExpense.categoryName, // Add if needed by WorkflowExpense
-            // paymentMethodId: completeExpense.paymentMethodId, // Add if needed
-            // paymentMethodName: completeExpense.paymentMethodName, // Add if needed
+            description: completeExpense.description,
             createdAt: completeExpense.createdAt,
             updatedAt: completeExpense.updatedAt,
           };
           setCurrentExpense(updatedWorkflowExpense);
         } else {
-          // If store couldn't fetch/find, use basic data (though store's fetch should handle errors)
           console.warn(
             "Could not fetch complete expense details via store, using basic data."
           );
@@ -125,46 +112,37 @@ export default function ExpenseList() {
           "Error fetching complete expense details via store:",
           fetchError
         );
-        setCurrentExpense(loadingExpense); // Fallback to basic data
-        // The store's error state (errorExpenses) should reflect this failure.
+        setCurrentExpense(loadingExpense);
       }
     } catch (error) {
       console.error(
         "Failed to prepare expense for editing (local component):",
         error
       );
-      // setError(error instanceof Error ? error.message : "Failed to prepare expense for editing");
       setIsEditModalOpen(false);
     }
   };
 
-  // Helper function to format dates consistently
   const formatDate = (dateString: string): string => {
     try {
       if (!dateString) return "";
 
-      // Create a Date object from the string
       const date = new Date(dateString);
 
-      // Check if date is valid
       if (isNaN(date.getTime())) {
-        // Try to handle special cases
         if (typeof dateString === "string" && dateString.includes("T")) {
-          // It's probably an ISO string with formatting issues
-          return dateString.split("T")[0]; // Extract just the YYYY-MM-DD part
+          return dateString.split("T")[0];
         }
-        return dateString; // Return original if we can't parse it
+        return dateString;
       }
 
-      // Format as YYYY-MM-DD
       return date.toISOString().split("T")[0];
     } catch (error) {
       console.error("Error formatting date:", error);
-      return dateString; // Return original string on error
+      return dateString;
     }
   };
 
-  // New handler for file upload and then processing
   const handleFileUploadAndProcess = async (file: File) => {
     setIsProcessingReceipt(true);
     try {
@@ -204,14 +182,10 @@ export default function ExpenseList() {
         setIsUploadModalOpen(false);
         setIsEditModalOpen(true);
       } else {
-        // Handle case where processing might return null or undefined, e.g. show an error
         console.error("Expense processing failed after upload.");
-        // Optionally set an error message for the user
       }
     } catch (error) {
       console.error("Error in file upload and process workflow:", error);
-      // Optionally, set a user-facing error message in the UI
-      // For example, by using a new state variable like setUploadError((error as Error).message)
     } finally {
       setIsProcessingReceipt(false);
     }
@@ -227,7 +201,9 @@ export default function ExpenseList() {
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-semibold leading-6 text-gray-900">Expenses</h1>
+            <h1 className="text-2xl font-semibold leading-6 text-gray-900">
+              Expenses
+            </h1>
             <p className="mt-2 text-sm text-gray-700">
               <Skeleton className="h-4 w-[300px]" />
             </p>
@@ -506,7 +482,7 @@ export default function ExpenseList() {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
               setWorkflowRunId(null);
-              fetchExpenses(); // Fetch updated expenses after workflow completion
+              fetchExpenses();
             }}
             onClose={() => {
               setIsEditModalOpen(false);
@@ -535,7 +511,7 @@ export default function ExpenseList() {
                 className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto"
                 onClick={async () => {
                   await handleDeleteExpense();
-                  // setExpenseToDelete(null); // handleDeleteExpense already sets this
+                  setExpenseToDelete(null);
                 }}
               >
                 Delete

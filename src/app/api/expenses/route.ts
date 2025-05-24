@@ -79,7 +79,6 @@ export async function POST(request: Request) {
       notes,
     } = body;
 
-    // Validate required fields
     if (!amount || !description || !categoryId || !date) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -89,7 +88,6 @@ export async function POST(request: Request) {
 
     await client.query("BEGIN");
 
-    // Verify category exists
     const { rows: categoryRows } = await client.query(
       "SELECT id FROM expense_categories WHERE id = $1",
       [categoryId]
@@ -103,7 +101,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify payment method exists if provided
     if (paymentMethodId) {
       const { rows: methodRows } = await client.query(
         "SELECT id FROM expense_payment_methods WHERE id = $1",
@@ -119,7 +116,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Insert the expense
     const {
       rows: [insertedExpenseData],
     } = await client.query(

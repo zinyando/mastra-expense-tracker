@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -11,7 +10,6 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
-// Helper function to generate a unique filename
 const generateUniqueFilename = (originalName: string): string => {
   const timestamp = Date.now();
   const extension = originalName.split(".").pop();
@@ -27,7 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "File must be an image" },
@@ -35,12 +32,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a unique filename
     const filename = generateUniqueFilename(file.name);
     const bytes = await file.arrayBuffer();
     const fileBuffer = Buffer.from(bytes);
-
-    // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("receipts")
       .upload(`public/${filename}`, fileBuffer, {
@@ -54,7 +48,6 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to upload file to storage");
     }
 
-    // Get the public URL
     const {
       data: { publicUrl },
     } = supabase.storage.from("receipts").getPublicUrl(`public/${filename}`);

@@ -3,8 +3,6 @@ import expenseWorkflow from "@/mastra/workflows/expense-workflow";
 import { pool } from "@/lib/db";
 import crypto from "crypto";
 
-// This local ExpenseResult type is an intermediate representation.
-// The final response aims to match the global Expense type.
 type ExpenseResult = {
   id: string;
   amount: number;
@@ -22,7 +20,7 @@ type ExpenseResult = {
   currency: string;
   tax: number;
   tip: number;
-  notes?: string; // Added notes
+  notes?: string;
 };
 
 type WorkflowStepOutput = {
@@ -39,7 +37,7 @@ type WorkflowStepOutput = {
   }>;
   tax?: number;
   tip?: number;
-  notes?: string; // Added notes to workflow output type if it can provide it
+  notes?: string;
 };
 
 type WorkflowStepBase<T> = {
@@ -86,37 +84,30 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    // Start the expense workflow
     const run = expenseWorkflow.createRun();
     const rawResult = await run.start({ inputData: { imageUrl } });
     const workflowResult = rawResult as unknown as WorkflowResult;
-
-    // Handle workflow based on status
     if (workflowResult.status === "suspended") {
-      // Generate a unique ID for this workflow run
       const workflowId = crypto.randomUUID();
 
-      // Get the processed expense data from the categorize step
       const processedData = workflowResult.steps["categorize-expense"].output;
 
       if (!processedData) {
         throw new Error("No processed data available from categorize step");
       }
 
-      // Return suspended state information
       return NextResponse.json({
         status: "suspended",
         suspendedData: {
-          currentData: processedData, // Use the processed data from categorize step
+          currentData: processedData,
         },
         suspendedSteps: workflowResult.suspended,
         message: "Workflow suspended, waiting for user input",
         fallback: false,
-        workflowId, // Include the workflow ID for resuming later
+        workflowId,
       });
     }
 
-    // For successful workflows, use the final result
     const expenseOutput =
       workflowResult.status === "success"
         ? workflowResult.result
@@ -138,13 +129,12 @@ export const POST = async (request: NextRequest) => {
         currency: expenseOutput.currency || "USD",
         tax: expenseOutput.tax ?? 0,
         tip: expenseOutput.tip ?? 0,
-        notes: expenseOutput.notes, // Assuming workflow might provide notes
+        notes: expenseOutput.notes,
       };
 
       try {
         await client.query("BEGIN");
 
-        // Create category if it doesn't exist
         let categoryId = null;
         if (expenseData.category?.name) {
           const { rows: existingCategory } = await client.query(
@@ -165,7 +155,6 @@ export const POST = async (request: NextRequest) => {
           }
         }
 
-        // Verify payment method exists if provided
         if (expenseData.paymentMethod?.id) {
           const { rows: methodRows } = await client.query(
             "SELECT id FROM expense_payment_methods WHERE id = $1",
@@ -181,7 +170,6 @@ export const POST = async (request: NextRequest) => {
           }
         }
 
-        // Insert the expense
         const {
           rows: [newExpense],
         } = await client.query(
@@ -232,8 +220,6 @@ export const POST = async (request: NextRequest) => {
         }
 
         let paymentMethodName = null;
-        // Note: paymentMethod is not strongly typed in expenseData for name, so we only use ID here.
-        // If paymentMethod name is needed, workflow/expenseData needs to ensure it's available or fetched.
         if (newExpense.payment_method_id) {
           const { rows: pmRows } = await client.query(
             "SELECT name FROM expense_payment_methods WHERE id = $1",
@@ -254,7 +240,7 @@ export const POST = async (request: NextRequest) => {
             merchant: newExpense.merchant,
             currency: newExpense.currency,
             receiptUrl: newExpense.receipt_url,
-            items: newExpense.items || undefined, // Ensure it's undefined if null/empty
+            items: newExpense.items || undefined,
             tax: newExpense.tax ? parseFloat(newExpense.tax) : undefined,
             tip: newExpense.tip ? parseFloat(newExpense.tip) : undefined,
             notes: newExpense.notes || undefined,
@@ -276,7 +262,6 @@ export const POST = async (request: NextRequest) => {
       }
     }
 
-    // If we reach here, it means the workflow failed
     console.error("Workflow error:", workflowResult);
     return NextResponse.json(
       { error: workflowResult.error || "Failed to process expense" },
@@ -285,16 +270,13 @@ export const POST = async (request: NextRequest) => {
   } catch (error) {
     console.error("Error processing expense:", error);
 
-    // Extract more detailed error information
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
-    // Provide more helpful error response
     return NextResponse.json(
       {
         error: "Error processing expense",
         details: errorMessage,
-        // Only include stack in development
         stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
       },
       { status: 500 }
