@@ -162,32 +162,65 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Charts and Recent Expenses */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Expense Chart */}
-          <div className="rounded-lg bg-white p-6 shadow">
-            <Skeleton className="h-6 w-48 mb-6" />
-            <div className="aspect-[4/3]">
-              <Skeleton className="h-full w-full rounded-lg" />
-            </div>
-          </div>
-
-          {/* Recent Expenses */}
-          <div className="rounded-lg bg-white p-6 shadow">
-            <Skeleton className="h-6 w-48 mb-6" />
-            <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div>
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-24 mt-1" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-4 w-20" />
+        {/* Spending Analysis Section */}
+        <div>
+          <Skeleton className="h-6 w-48 mb-6" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Category Breakdown */}
+            <div className="rounded-lg bg-white shadow overflow-hidden">
+              <div className="p-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <Skeleton className="h-5 w-32" />
                 </div>
-              ))}
+                <div className="mt-4 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between py-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-20" />
+                      <div className="flex items-center space-x-2">
+                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="h-2 w-16 rounded-full" />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between py-2 mt-2 border-t border-gray-200">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Expenses */}
+            <div className="rounded-lg bg-white shadow overflow-hidden">
+              <div className="p-5">
+                <table className="min-w-full">
+                  <thead>
+                    <tr>
+                      <th className="pb-3 w-1/4"><Skeleton className="h-4 w-16" /></th>
+                      <th className="pb-3 w-1/2"><Skeleton className="h-4 w-24" /></th>
+                      <th className="pb-3 w-1/4"><Skeleton className="h-4 w-16" /></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-t border-gray-100">
+                        <td className="py-3">
+                          <Skeleton className="h-4 w-16" />
+                        </td>
+                        <td className="py-3">
+                          <Skeleton className="h-4 w-32 mb-1" />
+                          <Skeleton className="h-3 w-24" />
+                        </td>
+                        <td className="py-3 text-right">
+                          <Skeleton className="h-4 w-16 ml-auto" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
