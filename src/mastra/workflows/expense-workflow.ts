@@ -3,27 +3,30 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { useExpenseStore } from "@/store/expenseStore";
+import { useCategoryStore } from "@/store/categoryStore";
 
 async function fetchCategoriesFromAPI(): Promise<
   { id: string; name: string }[]
 > {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/categories`
-  );
+  try {
+    await useCategoryStore.getState().fetchCategories();
+    const categories = useCategoryStore.getState().categories;
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch categories: ${response.status}`);
+    if (!categories || categories.length === 0) {
+      throw new Error("No categories found");
+    }
+
+    return categories.map((cat: { id: string; name: string }) => ({
+      id: cat.id,
+      name: cat.name,
+    }));
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Failed to fetch categories");
   }
-
-  const data = await response.json();
-  if (!data.categories?.length) {
-    throw new Error("No categories found");
-  }
-
-  return data.categories.map((cat: { id: string; name: string }) => ({
-    id: cat.id,
-    name: cat.name,
-  }));
 }
 
 const expenseSchema = z.object({
