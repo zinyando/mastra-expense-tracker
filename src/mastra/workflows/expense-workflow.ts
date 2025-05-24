@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createWorkflow, createStep } from "@mastra/core/workflows/vNext";
+import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { useExpenseStore } from "@/store/expenseStore";
