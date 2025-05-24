@@ -506,6 +506,7 @@ export default function ExpenseList() {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
               setWorkflowRunId(null);
+              fetchExpenses(); // Fetch updated expenses after workflow completion
             }}
             onClose={() => {
               setIsEditModalOpen(false);
