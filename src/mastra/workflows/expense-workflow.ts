@@ -103,14 +103,12 @@ const categorizeExpense = createStep({
   inputSchema: expenseSchema,
   outputSchema: expenseSchema,
   execute: async ({ inputData }) => {
-    // Fetch categories with their IDs
     const categoriesResponse = await fetchCategoriesFromAPI();
     const categories = categoriesResponse.map((c) => ({
       id: c.id,
       name: c.name,
     }));
 
-    // Get category names for AI
     const categoryNames = categories.map((c) => c.name);
 
     const { text } = await generateText({
@@ -134,12 +132,10 @@ const categorizeExpense = createStep({
     };
 
     if (categoryResponse) {
-      // Try exact match first
       const exactMatch = categories.find((c) => c.name === categoryResponse);
       if (exactMatch) {
         bestMatch = exactMatch;
       } else {
-        // Try case-insensitive match
         const lowerCaseResponse = categoryResponse.toLowerCase();
         const match = categories.find(
           (c) => c.name.toLowerCase() === lowerCaseResponse
@@ -193,7 +189,6 @@ const saveExpense = createStep({
   execute: async ({ inputData }) => {
     const addExpense = useExpenseStore.getState().addExpense;
 
-    // Use the category and categoryId that were already set by categorizeExpense step
     const expenseData = {
       merchant: inputData.merchant,
       amount: inputData.amount,
@@ -201,7 +196,7 @@ const saveExpense = createStep({
       date: inputData.date,
       description: inputData.notes || `Expense at ${inputData.merchant}`,
       categoryId: inputData.categoryId,
-      categoryName: inputData.category, // Use the category name from previous step
+      categoryName: inputData.category,
       items: inputData.items,
       tax: inputData.tax,
       tip: inputData.tip,
@@ -215,15 +210,14 @@ const saveExpense = createStep({
       throw new Error("Failed to save expense through the store");
     }
 
-    // Ensure all required fields are present and of the correct type
     return {
       id: savedExpense.id,
       merchant: savedExpense.merchant,
       amount: savedExpense.amount,
       currency: savedExpense.currency || "USD",
       date: savedExpense.date,
-      category: inputData.category, // Use category from previous step
-      categoryId: inputData.categoryId, // Include categoryId from previous step
+      category: inputData.category,
+      categoryId: inputData.categoryId,
       imageUrl: savedExpense.imageUrl || inputData.imageUrl,
       items: savedExpense.items || inputData.items,
       tax: savedExpense.tax || 0,

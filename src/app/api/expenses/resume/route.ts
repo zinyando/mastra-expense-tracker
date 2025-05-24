@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import expenseWorkflow from "@/mastra/workflows/expense-workflow";
 import { pool } from "@/lib/db";
 
-// This is similar to the type in create/route.ts
-// In a real application, these types would be shared
 type WorkflowStepOutput = {
   date: string;
   merchant: string;
@@ -24,9 +22,9 @@ type WorkflowStepOutput = {
 };
 
 type WorkflowStepBase<T> = {
-  status: "completed" | "failed" | "suspended";
+  status: "success" | "completed" | "failed" | "suspended";
   output?: T;
-  error?: string;
+  error?: string | Error | undefined;
 };
 
 type ExtractExpenseStep = WorkflowStepBase<WorkflowStepOutput>;
@@ -38,7 +36,7 @@ type WorkflowResult = {
     "categorize-expense": ExtractExpenseStep;
     "save-expense": ExtractExpenseStep;
   };
-  error?: string;
+  error?: string | Error | undefined;
   suspendedData?: unknown;
   result?: WorkflowStepOutput;
   suspended?: string[][];
@@ -60,58 +58,49 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    // Resume the workflow from where it was suspended
-    const run = expenseWorkflow.createRun({ runId: workflowId });
-    const rawResult = await run.resume({
-      step: stepId,
-      resumeData: {
-        ...resumeData,
-      },
+    const run = expenseWorkflow.createRun();
+    const result: WorkflowResult = await run.start({
+      inputData: { imageUrl: resumeData.imageUrl },
     });
 
-    const workflowResult = rawResult as unknown as WorkflowResult;
-
-    // If still suspended, return the suspended state
-    if (workflowResult.status === "suspended") {
-      return NextResponse.json({
-        status: "suspended",
-        suspendedData: workflowResult.suspendedData,
-        suspendedSteps: workflowResult.suspended,
-        message: "Workflow still suspended, waiting for more input",
-        fallback: false,
+    if (result.status === "suspended") {
+      const resumeResult: WorkflowResult = await run.resume({
+        step: stepId,
+        resumeData,
       });
+
+      if (resumeResult.status === "failed") {
+        return NextResponse.json(
+          { error: "Failed to process expense" },
+          { status: 500 }
+        );
+      }
+
+      if (resumeResult.status === "success") {
+        return NextResponse.json({
+          success: true,
+          expense: resumeResult.result,
+        });
+      }
     }
 
-    // If workflow failed, return the error
-    if (workflowResult.status === "failed") {
-      return NextResponse.json(
-        { error: workflowResult.error || "Failed to process expense" },
-        { status: 500 }
-      );
-    }
-
-    // For successful workflows, return the result
-    if (workflowResult.result) {
+    if (result.status === "success") {
       return NextResponse.json({
         success: true,
-        expense: workflowResult.result
+        expense: result.result,
       });
     }
 
-    // If we reach here, it means the workflow failed
-    console.error("Workflow error:", workflowResult);
     return NextResponse.json(
-      { error: workflowResult.error || "Failed to process expense" },
+      { error: "Failed to process expense" },
       { status: 500 }
     );
   } catch (error) {
     console.error("Error processing expense:", error);
 
-    // Extract more detailed error information
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
-    // Provide more helpful error response
     return NextResponse.json(
       {
         error: "Error processing expense",
