@@ -7,7 +7,7 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import StatCard from "@/components/dashboard/StatCard";
-import ExpenseChart from "@/components/dashboard/ExpenseChart";
+// ExpenseChart removed as requested
 import {
   getDashboardStats,
   processExpenseImage,
@@ -18,6 +18,7 @@ import Modal from "@/components/ui/Modal";
 import ExpenseUpload from "@/components/expenses/ExpenseUpload";
 import ExpenseProcessor from "@/components/expenses/ExpenseProcessor";
 import { WorkflowExpense, DashboardStats, Category } from "@/types";
+import CategoryBreakdown from "@/components/dashboard/CategoryBreakdown";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -217,7 +218,8 @@ export default function Dashboard() {
   return (
     <>
       <div className="space-y-6">
-        <div className="sm:flex sm:items-center mb-6">
+        {/* Header with Add Expense Button */}
+        <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
             <h1 className="text-2xl font-semibold leading-6 text-gray-900">
               Dashboard
@@ -238,6 +240,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Stat Cards */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <StatCard
             title="Total Expenses"
@@ -255,44 +258,72 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ExpenseChart data={stats.expensesByCategory} />
-          <div className="rounded-lg bg-white shadow">
-            <div className="px-6 py-5 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">
-                Recent Expenses
-              </h3>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {stats.recentExpenses && stats.recentExpenses.length > 0 ? (
-                stats.recentExpenses.map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="px-6 py-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center">
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900">
-                          {expense.merchant}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(expense.date).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: expense.currency || "USD",
-                      }).format(expense.amount)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="p-6 text-center text-gray-500">
-                  No recent expenses
-                </p>
-              )}
+        {/* Dashboard Content */}
+        <div>
+          <h2 className="text-xl font-semibold leading-6 text-gray-900 mb-4">
+            Spending Analysis
+          </h2>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Category Breakdown */}
+            <CategoryBreakdown data={stats.expensesByCategory} />
+
+            {/* Recent Activity */}
+            <div className="rounded-lg bg-white shadow">
+              <div className="overflow-hidden">
+                {stats.recentExpenses && stats.recentExpenses.length > 0 ? (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-indigo-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-5 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+                        >
+                          Date
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-5 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+                        >
+                          Description
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-5 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider"
+                        >
+                          Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {stats.recentExpenses.map((expense) => (
+                        <tr key={expense.id}>
+                          <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(expense.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-5 py-3 text-sm text-gray-700">
+                            <div className="font-medium">{expense.merchant}</div>
+                            {expense.description && (
+                              <div className="text-gray-500 text-sm mt-0.5">
+                                {expense.description}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                            {new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: expense.currency || "USD",
+                            }).format(expense.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="p-4 text-center text-gray-500">
+                    No recent expenses
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -41,9 +41,9 @@ const expenseSchema = z.object({
     .array(
       z.object({
         description: z.string(),
-        quantity: z.number().positive().optional(),
-        unitPrice: z.number().positive().optional(),
-        total: z.number().positive(),
+        quantity: z.number().min(0).optional(),
+        unitPrice: z.number().min(0).optional(),
+        total: z.number().min(0),
       })
     )
     .optional(),
