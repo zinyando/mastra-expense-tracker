@@ -47,9 +47,13 @@ export default function ExpenseProcessor({
   onResumed,
   onClose,
 }: ExpenseProcessorProps) {
-  const [formData, setFormData] = useState<WorkflowExpense>(
-    suspendedData || expense
-  );
+  const [formData, setFormData] = useState<WorkflowExpense>(() => {
+    const initialData = suspendedData || expense;
+    return {
+      ...initialData,
+      currency: initialData.currency || "USD", // Default to "USD" if currency is falsy
+    };
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addExpense, updateExpense } = useExpenseStore(); // Zustand actions
