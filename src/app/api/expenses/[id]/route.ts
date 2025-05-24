@@ -3,11 +3,11 @@ import { pool } from "@/lib/db";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const client = await pool.connect();
   try {
-    const { id } = params;
+    const { id } = await context.params;
 
     const { rows } = await client.query(`
       SELECT
@@ -70,11 +70,11 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const client = await pool.connect();
   try {
-    const { id } = params;
+    const { id } = await context.params;
     const { amount, description, categoryId, paymentMethodId, date, merchant, currency, items, tax, tip, notes } = await request.json();
     const updates = { amount, description, categoryId, paymentMethodId, date, merchant, currency, items, tax, tip, notes }; // Reconstruct for clarity if needed or use directly
     
@@ -208,11 +208,11 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const client = await pool.connect();
   try {
-    const { id } = params;
+    const { id } = await context.params;
 
     await client.query('BEGIN');
 
