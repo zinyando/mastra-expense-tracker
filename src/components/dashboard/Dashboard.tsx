@@ -1,29 +1,35 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   BanknotesIcon,
   FolderIcon,
   PlusIcon,
-} from '@heroicons/react/24/outline';
-import StatCard from '@/components/dashboard/StatCard';
-import ExpenseChart from '@/components/dashboard/ExpenseChart';
-import { getDashboardStats, processExpenseImage, getCategories } from '@/utils/api';
-import { Skeleton } from '@/components/ui/skeleton';
-import Modal from '@/components/ui/Modal';
-import ExpenseUpload from '@/components/expenses/ExpenseUpload';
-import ExpenseProcessor from '@/components/expenses/ExpenseProcessor';
-import { WorkflowExpense, DashboardStats, Category } from '@/types';
+} from "@heroicons/react/24/outline";
+import StatCard from "@/components/dashboard/StatCard";
+import ExpenseChart from "@/components/dashboard/ExpenseChart";
+import {
+  getDashboardStats,
+  processExpenseImage,
+  getCategories,
+} from "@/utils/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import Modal from "@/components/ui/Modal";
+import ExpenseUpload from "@/components/expenses/ExpenseUpload";
+import ExpenseProcessor from "@/components/expenses/ExpenseProcessor";
+import { WorkflowExpense, DashboardStats, Category } from "@/types";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Add Expense modal states
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(null);
+  const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(
+    null
+  );
   const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -77,25 +83,15 @@ export default function Dashboard() {
     }
   };
 
-  // Handle expense save/resume
-  const handleExpenseSaved = (expense: WorkflowExpense) => {
-    setIsEditModalOpen(false);
-    setCurrentExpense(null);
-    setWorkflowRunId(null);
-    // Refresh dashboard stats after adding a new expense
-    fetchStats();
-    
-    // You could do something with the expense here if needed
-    console.log('Expense saved:', expense.merchant, expense.amount);
-  };
-
   const fetchStats = async () => {
     try {
       const data = await getDashboardStats();
       setStats(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      setError(
+        err instanceof Error ? err.message : "Failed to load dashboard data"
+      );
     } finally {
       setLoading(false);
     }
@@ -108,7 +104,7 @@ export default function Dashboard() {
         setCategories(response.categories);
       }
     } catch (err) {
-      console.error('Failed to fetch categories:', err);
+      console.error("Failed to fetch categories:", err);
     }
   };
 
@@ -130,7 +126,7 @@ export default function Dashboard() {
             <Skeleton className="h-10 w-32" />
           </div>
         </div>
-        
+
         {/* Stat Cards */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div className="rounded-lg bg-white px-6 py-8 shadow">
@@ -201,7 +197,9 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="rounded-lg bg-red-50 p-4">
-        <h3 className="text-sm font-medium text-red-800">Error loading dashboard</h3>
+        <h3 className="text-sm font-medium text-red-800">
+          Error loading dashboard
+        </h3>
         <div className="mt-2 text-sm text-red-700">{error}</div>
       </div>
     );
@@ -211,9 +209,9 @@ export default function Dashboard() {
     return null;
   }
 
-  const formattedTotal = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  const formattedTotal = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(stats.totalExpenses);
 
   return (
@@ -221,7 +219,9 @@ export default function Dashboard() {
       <div className="space-y-6">
         <div className="sm:flex sm:items-center mb-6">
           <div className="sm:flex-auto">
-            <h1 className="text-2xl font-semibold leading-6 text-gray-900">Dashboard</h1>
+            <h1 className="text-2xl font-semibold leading-6 text-gray-900">
+              Dashboard
+            </h1>
             <p className="mt-2 text-sm text-gray-700">
               Overview of your expenses and financial activity.
             </p>
@@ -259,28 +259,39 @@ export default function Dashboard() {
           <ExpenseChart data={stats.expensesByCategory} />
           <div className="rounded-lg bg-white shadow">
             <div className="px-6 py-5 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Recent Expenses</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Recent Expenses
+              </h3>
             </div>
             <div className="divide-y divide-gray-200">
               {stats.recentExpenses && stats.recentExpenses.length > 0 ? (
                 stats.recentExpenses.map((expense) => (
-                  <div key={expense.id} className="px-6 py-4 flex items-center justify-between">
+                  <div
+                    key={expense.id}
+                    className="px-6 py-4 flex items-center justify-between"
+                  >
                     <div className="flex items-center">
                       <div className="ml-3">
-                        <p className="text-sm font-medium text-gray-900">{expense.merchant}</p>
-                        <p className="text-sm text-gray-500">{new Date(expense.date).toLocaleDateString()}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {expense.merchant}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(expense.date).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                     <div className="text-sm font-medium text-gray-900">
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: expense.currency || 'USD',
+                      {new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: expense.currency || "USD",
                       }).format(expense.amount)}
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="p-6 text-center text-gray-500">No recent expenses</p>
+                <p className="p-6 text-center text-gray-500">
+                  No recent expenses
+                </p>
               )}
             </div>
           </div>
@@ -290,35 +301,48 @@ export default function Dashboard() {
       {/* Upload Modal */}
       <Modal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        title="Upload Receipt"
+        onClose={() => {
+          if (!isProcessingReceipt) setIsUploadModalOpen(false);
+        }}
+        title="Upload Expense Receipt"
       >
-        <div className="relative">
-          {isProcessingReceipt && (
-            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            </div>
-          )}
-          <ExpenseUpload
-            onUpload={handleFileUploadAndProcess}
-          />
-        </div>
+        {isProcessingReceipt ? (
+          <div className="flex flex-col items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-sm text-gray-600">Processing receipt...</p>
+          </div>
+        ) : (
+          <ExpenseUpload onUpload={handleFileUploadAndProcess} />
+        )}
       </Modal>
 
       {/* Edit/Review Modal */}
       <Modal
         isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title="Process Expense"
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setCurrentExpense(null);
+          setWorkflowRunId(null);
+        }}
+        title={workflowRunId ? "Review Expense" : "Add New Expense"}
       >
         {currentExpense && (
           <ExpenseProcessor
             expense={currentExpense}
             categories={categories}
-            suspendedData={currentExpense}
+            suspendedData={workflowRunId ? currentExpense : undefined}
             workflowRunId={workflowRunId || undefined}
-            onResumed={handleExpenseSaved}
-            onClose={() => setIsEditModalOpen(false)}
+            onResumed={() => {
+              setIsEditModalOpen(false);
+              setCurrentExpense(null);
+              setWorkflowRunId(null);
+              fetchStats(); // Refresh dashboard stats after adding expense
+            }}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setCurrentExpense(null);
+              setWorkflowRunId(null);
+            }}
           />
         )}
       </Modal>
