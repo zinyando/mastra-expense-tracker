@@ -50,6 +50,16 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      <div className="p-4 border-t border-gray-800">
+        <a
+          href="https://mastra.ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center text-sm text-gray-400 hover:text-white transition-colors"
+        >
+          Powered by Mastra
+        </a>
+      </div>
     </div>
   );
 }
