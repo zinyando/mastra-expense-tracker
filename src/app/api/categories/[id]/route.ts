@@ -3,13 +3,15 @@ import { pool } from "@/lib/db";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const {
       rows: [category],
     } = await pool.query("SELECT * FROM expense_categories WHERE id = $1", [
-      params.id,
+      id,
     ]);
 
     if (!category) {
@@ -32,10 +34,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { name, color, description } = body;
 
@@ -82,17 +84,19 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const client = await pool.connect();
 
   try {
+    const { id } = await params;
+
     await client.query("BEGIN");
 
     const {
       rows: [category],
     } = await client.query("SELECT * FROM expense_categories WHERE id = $1", [
-      params.id,
+      id,
     ]);
 
     if (!category) {
@@ -104,7 +108,7 @@ export async function DELETE(
 
     const { rows: expenses } = await client.query(
       "SELECT id FROM expenses WHERE category_id = $1 LIMIT 1",
-      [params.id]
+      [id]
     );
 
     if (expenses.length > 0) {
@@ -114,9 +118,7 @@ export async function DELETE(
       );
     }
 
-    await client.query("DELETE FROM expense_categories WHERE id = $1", [
-      params.id,
-    ]);
+    await client.query("DELETE FROM expense_categories WHERE id = $1", [id]);
 
     await client.query("COMMIT");
     return new NextResponse(null, { status: 204 });

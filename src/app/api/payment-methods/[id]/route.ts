@@ -3,14 +3,15 @@ import { pool } from "@/lib/db";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const {
       rows: [paymentMethod],
     } = await pool.query(
       "SELECT * FROM expense_payment_methods WHERE id = $1",
-      [params.id]
+      [id]
     );
 
     if (!paymentMethod) {
@@ -32,9 +33,10 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const data = await request.json();
     const {
       rows: [paymentMethod],
@@ -43,7 +45,7 @@ export async function PATCH(
        SET name = $1, type = $2, last_four_digits = $3, is_default = $4
        WHERE id = $5
        RETURNING *`,
-      [data.name, data.type, data.lastFourDigits, data.isDefault, params.id]
+      [data.name, data.type, data.lastFourDigits, data.isDefault, id]
     );
 
     return NextResponse.json(paymentMethod);
@@ -58,14 +60,15 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const {
       rows: [paymentMethod],
     } = await pool.query(
       "SELECT * FROM expense_payment_methods WHERE id = $1",
-      [params.id]
+      [id]
     );
 
     if (!paymentMethod) {
@@ -86,7 +89,7 @@ export async function DELETE(
     }
 
     await pool.query("DELETE FROM expense_payment_methods WHERE id = $1", [
-      params.id,
+      id,
     ]);
 
     return new NextResponse(null, { status: 204 });

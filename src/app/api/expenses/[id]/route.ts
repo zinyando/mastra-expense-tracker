@@ -3,7 +3,7 @@ import { pool } from "@/lib/db";
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const client = await pool.connect();
   try {
@@ -75,7 +75,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const client = await pool.connect();
   try {
@@ -250,7 +250,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const client = await pool.connect();
   try {
