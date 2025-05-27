@@ -44,14 +44,50 @@ export async function PUT(
   try {
     const { id } = await params;
     const data = await request.json();
+    
+    // If setting as default, update other payment methods first
+    if (data.isDefault) {
+      await pool.query(
+        "UPDATE expense_payment_methods SET is_default = false WHERE is_default = true"
+      );
+    }
+
+    // Build the update query based on provided fields
+    const updates: string[] = [];
+    const values: (string | boolean | null)[] = [];
+    let paramIndex = 1;
+
+    if (data.name !== undefined) {
+      updates.push(`name = $${paramIndex}`);
+      values.push(data.name);
+      paramIndex++;
+    }
+    if (data.type !== undefined) {
+      updates.push(`type = $${paramIndex}`);
+      values.push(data.type);
+      paramIndex++;
+    }
+    if (data.lastFourDigits !== undefined) {
+      updates.push(`last_four_digits = $${paramIndex}`);
+      values.push(data.lastFourDigits);
+      paramIndex++;
+    }
+    if (data.isDefault !== undefined) {
+      updates.push(`is_default = $${paramIndex}`);
+      values.push(data.isDefault);
+      paramIndex++;
+    }
+
+    values.push(id); // Add id as the last parameter
+
     const {
       rows: [paymentMethod],
     } = await pool.query(
       `UPDATE expense_payment_methods 
-       SET name = $1, type = $2, last_four_digits = $3, is_default = $4
-       WHERE id = $5
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex}
        RETURNING *`,
-      [data.name, data.type, data.lastFourDigits, data.isDefault, id]
+      values
     );
 
     if (!paymentMethod) {
