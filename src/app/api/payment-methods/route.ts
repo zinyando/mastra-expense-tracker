@@ -7,7 +7,16 @@ export async function GET() {
     const { rows } = await pool.query(
       "SELECT * FROM expense_payment_methods ORDER BY name"
     );
-    return NextResponse.json({ paymentMethods: rows });
+    
+    const paymentMethods = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      lastFourDigits: row.last_four_digits || undefined,
+      isDefault: row.is_default
+    }));
+
+    return NextResponse.json({ paymentMethods });
   } catch (error) {
     console.error("Error fetching payment methods:", error);
     return NextResponse.json(

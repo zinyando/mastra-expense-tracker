@@ -7,19 +7,25 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const {
-      rows: [paymentMethod],
-    } = await pool.query(
+    const { rows: [row] } = await pool.query(
       "SELECT * FROM expense_payment_methods WHERE id = $1",
       [id]
     );
 
-    if (!paymentMethod) {
+    if (!row) {
       return NextResponse.json(
         { error: "Payment method not found" },
         { status: 404 }
       );
     }
+
+    const paymentMethod = {
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      lastFourDigits: row.last_four_digits || undefined,
+      isDefault: row.is_default
+    };
 
     return NextResponse.json(paymentMethod);
   } catch (error) {
