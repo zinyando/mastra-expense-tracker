@@ -31,7 +31,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -47,6 +47,13 @@ export async function PATCH(
        RETURNING *`,
       [data.name, data.type, data.lastFourDigits, data.isDefault, id]
     );
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: "Payment method not found" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json(paymentMethod);
   } catch (error) {
