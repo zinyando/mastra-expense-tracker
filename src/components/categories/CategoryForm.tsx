@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Category } from '@/utils/api';
+import type { Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
