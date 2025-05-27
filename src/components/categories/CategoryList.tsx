@@ -79,9 +79,9 @@ export default function CategoryList() {
             <h1 className="text-xl font-semibold text-gray-900">
               <Skeleton className="h-7 w-[120px]" />
             </h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <div className="mt-2 text-sm text-gray-700">
               <Skeleton className="h-5 w-[200px]" />
-            </p>
+            </div>
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
             <Skeleton className="h-10 w-[140px]" />
@@ -171,9 +171,9 @@ export default function CategoryList() {
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
             <h1 className="text-xl font-semibold text-gray-900">Categories</h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <div className="mt-2 text-sm text-gray-700">
               Manage your expense categories
-            </p>
+            </div>
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
             <button
@@ -278,14 +278,14 @@ export default function CategoryList() {
         title="Confirm Delete"
       >
         <div className="p-6">
-          <p className="text-sm text-gray-500 mb-4">
+          <div className="text-sm text-gray-500 mb-4">
             Are you sure you want to delete this category?
             {categoryToDelete && (
               <span className="block mt-2 font-medium">
                 {categoryToDelete.name}
               </span>
             )}
-          </p>
+          </div>
           <div className="mt-4 flex justify-end gap-3">
             <button
               type="button"

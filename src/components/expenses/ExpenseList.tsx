@@ -204,9 +204,9 @@ export default function ExpenseList() {
             <h1 className="text-2xl font-semibold leading-6 text-gray-900">
               Expenses
             </h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <div className="mt-2 text-sm text-gray-700">
               <Skeleton className="h-4 w-[300px]" />
-            </p>
+            </div>
           </div>
           <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
             <Skeleton className="h-9 w-[120px]" />
@@ -298,10 +298,10 @@ export default function ExpenseList() {
   if (overallError) {
     return (
       <div className="text-center py-10 px-4 sm:px-6 lg:px-8">
-        <p className="text-red-500">
+        <div className="text-red-500">
           Error loading data:{" "}
           {overallError?.message || "An unknown error occurred"}
-        </p>
+        </div>
         <button
           onClick={() => {
             fetchExpenses();
