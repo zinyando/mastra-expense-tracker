@@ -97,7 +97,16 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json(paymentMethod);
+    // Convert snake_case to camelCase for frontend
+    const formattedPaymentMethod = {
+      id: paymentMethod.id,
+      name: paymentMethod.name,
+      type: paymentMethod.type,
+      lastFourDigits: paymentMethod.last_four_digits || undefined,
+      isDefault: paymentMethod.is_default
+    };
+
+    return NextResponse.json(formattedPaymentMethod);
   } catch (error) {
     console.error("Error updating payment method:", error);
     return NextResponse.json(
