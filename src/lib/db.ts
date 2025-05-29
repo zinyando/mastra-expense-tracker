@@ -4,7 +4,16 @@ import { resolve } from "path";
 
 dotenv.config({ path: resolve(__dirname, "../../.env.development") });
 
-export const pool = new Pool({
+if (!process.env.POSTGRES_HOST ||
+    !process.env.POSTGRES_PORT ||
+    !process.env.POSTGRES_DATABASE ||
+    !process.env.POSTGRES_USER ||
+    !process.env.POSTGRES_PASSWORD
+) {
+  throw new Error('Missing required database configuration');
+}
+
+export const dbConfig = {
   host: process.env.POSTGRES_HOST,
   port: Number(process.env.POSTGRES_PORT),
   database: process.env.POSTGRES_DATABASE,
@@ -13,7 +22,9 @@ export const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
-});
+} as const;
+
+export const pool = new Pool(dbConfig);
 
 export async function initializeDatabase() {
   const client = await pool.connect();
