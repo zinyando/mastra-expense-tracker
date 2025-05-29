@@ -115,7 +115,7 @@ export type SuspendedWorkflow = {
   status: string;
   suspendedData: Record<string, unknown>;
   suspendedSteps: string[][];
-  workflowId: string;
+  runId: string;
 };
 
 export async function processExpenseImage(
@@ -136,7 +136,7 @@ export async function processExpenseImage(
     suspendedSteps?: string[][];
     fallback?: boolean;
     message: string;
-    workflowId?: string;
+    runId?: string;
   }>(response);
 
   let expense: Expense;
@@ -168,7 +168,7 @@ export async function processExpenseImage(
         currentData: expenseData,
       },
       suspendedSteps: data.suspendedSteps || [["review-expense"]],
-      workflowId: data.workflowId || `workflow_${Date.now()}`,
+      runId: data.runId || `workflow_${Date.now()}`,
     };
   }
 
@@ -176,7 +176,7 @@ export async function processExpenseImage(
 }
 
 export async function resumeWorkflow(
-  workflowId: string,
+  runId: string,
   stepId: string,
   resumeData: Record<string, unknown>
 ): Promise<Expense | SuspendedWorkflow> {
@@ -185,7 +185,7 @@ export async function resumeWorkflow(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ workflowId, stepId, resumeData }),
+    body: JSON.stringify({ runId, stepId, resumeData }),
   });
 
   const data = await handleResponse<{
@@ -207,7 +207,7 @@ export async function resumeWorkflow(
       status: "suspended",
       suspendedData: data.suspendedData,
       suspendedSteps: data.suspendedSteps || [],
-      workflowId: workflowId,
+      runId: runId,
     };
   }
 

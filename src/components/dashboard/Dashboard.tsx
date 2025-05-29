@@ -67,7 +67,7 @@ export default function Dashboard() {
         setCurrentExpense(
           suspendedWorkflow.suspendedData.currentData as WorkflowExpense
         );
-        setWorkflowRunId(suspendedWorkflow.workflowId);
+        setWorkflowRunId(suspendedWorkflow.runId);
         setIsUploadModalOpen(false);
         setIsEditModalOpen(true);
       } else if ("merchant" in result) {
@@ -174,7 +174,10 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-4 space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-between py-2">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between py-2"
+                    >
                       <Skeleton className="h-4 w-24" />
                       <Skeleton className="h-4 w-20" />
                       <div className="flex items-center space-x-2">
@@ -198,9 +201,15 @@ export default function Dashboard() {
                 <table className="min-w-full">
                   <thead>
                     <tr>
-                      <th className="pb-3 w-1/4"><Skeleton className="h-4 w-16" /></th>
-                      <th className="pb-3 w-1/2"><Skeleton className="h-4 w-24" /></th>
-                      <th className="pb-3 w-1/4"><Skeleton className="h-4 w-16" /></th>
+                      <th className="pb-3 w-1/4">
+                        <Skeleton className="h-4 w-16" />
+                      </th>
+                      <th className="pb-3 w-1/2">
+                        <Skeleton className="h-4 w-24" />
+                      </th>
+                      <th className="pb-3 w-1/4">
+                        <Skeleton className="h-4 w-16" />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -334,7 +343,9 @@ export default function Dashboard() {
                             {new Date(expense.date).toLocaleDateString()}
                           </td>
                           <td className="px-5 py-3 text-sm text-gray-700">
-                            <div className="font-medium">{expense.merchant}</div>
+                            <div className="font-medium">
+                              {expense.merchant}
+                            </div>
                             {expense.description && (
                               <div className="text-gray-500 text-sm mt-0.5">
                                 {expense.description}

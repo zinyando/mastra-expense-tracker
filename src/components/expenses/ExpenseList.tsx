@@ -174,7 +174,7 @@ export default function ExpenseList() {
         setCurrentExpense(
           suspendedWorkflow.suspendedData.currentData as WorkflowExpense
         );
-        setWorkflowRunId(suspendedWorkflow.workflowId);
+        setWorkflowRunId(suspendedWorkflow.runId);
         setIsUploadModalOpen(false);
         setIsEditModalOpen(true);
       } else if ("merchant" in result) {
