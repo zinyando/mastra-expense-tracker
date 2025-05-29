@@ -154,7 +154,7 @@ export default function ExpenseProcessor({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            workflowId: workflowRunId,
+            runId: workflowRunId,
             stepId: "review-expense",
             resumeData,
           }),

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import expenseWorkflow from "@/mastra/workflows/expense-workflow";
-import { pool } from "@/lib/db";
+import { mastra } from "@/mastra";
 
 type WorkflowStepOutput = {
   date: string;
@@ -45,55 +44,51 @@ type WorkflowResult = {
 export const dynamic = "force-dynamic";
 
 export const POST = async (request: NextRequest) => {
-  const client = await pool.connect();
   try {
     const body = await request.json();
 
-    const { workflowId, stepId, resumeData } = body;
+    const { runId, stepId, resumeData } = body;
 
-    if (!workflowId || !stepId || !resumeData) {
+    if (!runId || !stepId || !resumeData) {
       return NextResponse.json(
-        { error: "workflowId, stepId, and resumeData are required" },
+        { error: "runId, stepId, and resumeData are required" },
         { status: 400 }
       );
     }
 
-    const run = expenseWorkflow.createRun();
-    const result: WorkflowResult = await run.start({
-      inputData: { imageUrl: resumeData.imageUrl },
-    });
+    const workflow = mastra.getWorkflow("expenseWorkflow");
 
-    if (result.status === "suspended") {
-      const resumeResult: WorkflowResult = await run.resume({
-        step: stepId,
-        resumeData,
-      });
+    const run = await workflow.createRun({ runId });
 
-      if (resumeResult.status === "failed") {
-        return NextResponse.json(
-          { error: "Failed to process expense" },
-          { status: 500 }
-        );
-      }
-
-      if (resumeResult.status === "success") {
-        return NextResponse.json({
-          success: true,
-          expense: resumeResult.result,
-        });
-      }
+    if (!run) {
+      return NextResponse.json(
+        { error: "Workflow run not found" },
+        { status: 404 }
+      );
     }
 
-    if (result.status === "success") {
+    const resumeResult: WorkflowResult = await run.resume({
+      step: stepId,
+      resumeData,
+    });
+
+    if (resumeResult.status === "failed") {
+      return NextResponse.json(
+        { error: "Failed to process expense" },
+        { status: 500 }
+      );
+    }
+
+    if (resumeResult.status === "success") {
       return NextResponse.json({
         success: true,
-        expense: result.result,
+        expense: resumeResult.result,
       });
     }
 
     return NextResponse.json(
-      { error: "Failed to process expense" },
-      { status: 500 }
+      { error: `Unexpected workflow status: ${resumeResult.status}` },
+      { status: 400 }
     );
   } catch (error) {
     console.error("Error processing expense:", error);
@@ -109,7 +104,5 @@ export const POST = async (request: NextRequest) => {
       },
       { status: 500 }
     );
-  } finally {
-    client.release();
   }
 };
