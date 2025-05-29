@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(
     null
   );
-  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -67,7 +67,7 @@ export default function Dashboard() {
         setCurrentExpense(
           suspendedWorkflow.suspendedData.currentData as WorkflowExpense
         );
-        setWorkflowRunId(suspendedWorkflow.runId);
+        setRunId(suspendedWorkflow.runId);
         setIsUploadModalOpen(false);
         setIsEditModalOpen(true);
       } else if ("merchant" in result) {
@@ -397,26 +397,26 @@ export default function Dashboard() {
         onClose={() => {
           setIsEditModalOpen(false);
           setCurrentExpense(null);
-          setWorkflowRunId(null);
+          setRunId(null);
         }}
-        title={workflowRunId ? "Review Expense" : "Add New Expense"}
+        title={runId ? "Review Expense" : "Add New Expense"}
       >
         {currentExpense && (
           <ExpenseProcessor
             expense={currentExpense}
             categories={categories}
-            suspendedData={workflowRunId ? currentExpense : undefined}
-            workflowRunId={workflowRunId || undefined}
+            suspendedData={runId ? currentExpense : undefined}
+            runId={runId || undefined}
             onResumed={() => {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
-              setWorkflowRunId(null);
+              setRunId(null);
               fetchStats(); // Refresh dashboard stats after adding expense
             }}
             onClose={() => {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
-              setWorkflowRunId(null);
+              setRunId(null);
             }}
           />
         )}

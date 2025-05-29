@@ -33,7 +33,7 @@ export default function ExpenseList() {
   const [currentExpense, setCurrentExpense] = useState<WorkflowExpense | null>(
     null
   );
-  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
@@ -174,7 +174,7 @@ export default function ExpenseList() {
         setCurrentExpense(
           suspendedWorkflow.suspendedData.currentData as WorkflowExpense
         );
-        setWorkflowRunId(suspendedWorkflow.runId);
+        setRunId(suspendedWorkflow.runId);
         setIsUploadModalOpen(false);
         setIsEditModalOpen(true);
       } else if ("merchant" in result) {
@@ -465,7 +465,7 @@ export default function ExpenseList() {
           setCurrentExpense(null);
         }}
         title={
-          workflowRunId
+          runId
             ? "Review Expense"
             : currentExpense?.id
               ? "Edit Expense"
@@ -476,18 +476,18 @@ export default function ExpenseList() {
           <ExpenseProcessor
             expense={currentExpense}
             categories={categoriesList}
-            suspendedData={workflowRunId ? currentExpense : undefined}
-            workflowRunId={workflowRunId || undefined}
+            suspendedData={runId ? currentExpense : undefined}
+            runId={runId || undefined}
             onResumed={() => {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
-              setWorkflowRunId(null);
+              setRunId(null);
               fetchExpenses();
             }}
             onClose={() => {
               setIsEditModalOpen(false);
               setCurrentExpense(null);
-              setWorkflowRunId(null);
+              setRunId(null);
             }}
           />
         ) : null}

@@ -34,7 +34,7 @@ interface ExpenseProcessorProps {
   expense: WorkflowExpense;
   categories: Category[];
   suspendedData?: WorkflowExpense;
-  workflowRunId?: string;
+  runId?: string;
   onResumed: (finalExpense: WorkflowExpense) => void;
   onClose: () => void;
 }
@@ -43,7 +43,7 @@ export default function ExpenseProcessor({
   expense,
   categories,
   suspendedData,
-  workflowRunId,
+  runId,
   onResumed,
   onClose,
 }: ExpenseProcessorProps) {
@@ -132,7 +132,7 @@ export default function ExpenseProcessor({
     setError(null);
 
     try {
-      if (workflowRunId) {
+      if (runId) {
         const categoryName =
           categories.find((c) => c.id === formData.categoryId)?.name || "";
 
@@ -154,7 +154,7 @@ export default function ExpenseProcessor({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            runId: workflowRunId,
+            runId: runId,
             stepId: "review-expense",
             resumeData,
           }),
@@ -193,7 +193,7 @@ export default function ExpenseProcessor({
     <Card className="w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
       <CardHeader>
         <CardTitle>
-          {workflowRunId ? "Review Expense" : "Edit Expense"}
+          {runId ? "Review Expense" : "Edit Expense"}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto">
